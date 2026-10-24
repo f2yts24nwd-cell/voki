@@ -74,4 +74,4 @@ npx http-server -c-1 .
 | `js/grammar.js` | Grammatik-Übungen (Englisch und Französisch) |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
 
-Wenn du Dateien änderst, in `sw.js` die `VERSION` erhöhen, damit installierte Apps das Update laden.
+Wenn du Dateien änderst, in `sw.js` die `VERSION` und in `js/app.js` die `APP_VERSION` erhöhen. Die Versionsnummer steht unten in den Einstellungen.

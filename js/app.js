@@ -12,6 +12,10 @@ const app = document.getElementById('app');
 let cleanup = () => {};
 let installPrompt = null;
 let lastMistakes = [];
+let updateReady = false;
+
+// Muss zu VERSION in sw.js passen
+const APP_VERSION = 4;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -85,6 +89,10 @@ function setTitle(t) {
 // ---------- Router ----------
 
 function route() {
+  if (updateReady && !location.hash.startsWith('#/ueben')) {
+    location.reload();
+    return;
+  }
   cleanup();
   cleanup = () => {};
   window.scrollTo(0, 0);
@@ -733,7 +741,7 @@ function renderSettings() {
         <button class="btn danger" type="button" id="reset">Fortschritt zurücksetzen</button>
       </fieldset>
     </form>
-    <p class="muted small center">Voki · Vokabeltrainer mit Stifterkennung</p>
+    <p class="muted small center">Voki · Vokabeltrainer mit Stifterkennung · Version ${APP_VERSION}</p>
   `;
   const form = document.getElementById('form');
   form.addEventListener('change', () => {
@@ -781,7 +789,22 @@ function renderSettings() {
 // ---------- Start ----------
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+    // Eine App vom Home-Bildschirm wird oft nur fortgesetzt statt neu gestartet –
+    // deshalb beim Zurückkehren nach einer neuen Version suchen.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
+  }).catch(() => {});
+
+  // Neue Version hat übernommen: einmal neu laden – aber nicht mitten im Üben,
+  // dann beim nächsten Seitenwechsel (siehe route()).
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || updateReady) return;
+    updateReady = true;
+    if (!location.hash.startsWith('#/ueben')) location.reload();
+  });
 }
 
 route();
