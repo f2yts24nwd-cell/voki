@@ -1,6 +1,9 @@
 // Service Worker: hält die App offline verfügbar.
-// Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'voki-v3';
+// Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
+// Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
+// Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
+const VERSION = 'voki-v4';
+const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
   'index.html',
@@ -21,7 +24,12 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' – immer frisch vom Server holen, nie aus dem Browser-Zwischenspeicher
+  e.waitUntil(
+    caches.open(VERSION)
+      .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -34,15 +42,26 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Nur eigene Dateien cachen, die Handschrifterkennung läuft immer übers Netz
+  // Nur eigene Dateien, die Handschrifterkennung läuft immer übers Netz
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((cached) => {
-      const network = fetch(e.request).then((res) => {
-        if (res.ok) caches.open(VERSION).then((c) => c.put(e.request, res.clone()));
-        return res;
-      });
+  url.hash = '';
+
+  const network = fetch(url.href, { cache: 'no-cache' }).then((res) => {
+    if (res.ok) {
+      const copy = res.clone();
+      caches.open(VERSION).then((c) => c.put(url.href, copy));
+    }
+    return res;
+  });
+  e.waitUntil(network.catch(() => {}));
+
+  e.respondWith((async () => {
+    try {
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NETWORK_TIMEOUT));
+      return await Promise.race([network, timeout]);
+    } catch {
+      const cached = await caches.match(url.href, { ignoreSearch: true });
       return cached || network;
-    }),
-  );
+    }
+  })());
 });
