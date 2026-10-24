@@ -1,9 +1,13 @@
+import { FRENCH_LISTS } from './vocab-fr.js';
+import { ENGLISH_GRAMMAR, FRENCH_GRAMMAR } from './grammar.js';
+
 // Mitgelieferte Wortschatz-Listen für Englisch Klasse 6 (Baden-Württemberg).
 // Die Themen orientieren sich am Bildungsplan BW (Klassen 5/6), sind aber
 // keine Kopie eines bestimmten Schulbuchs. Die Wörter aus der eigenen Unit
 // lassen sich in der App als eigene Liste anlegen.
 //
 // Format je Eintrag: [englisch, deutsch, hinweis?]
+// (Das Feld "en" steht in der ganzen App für das Wort in der Fremdsprache.)
 // - Mehrere richtige Antworten mit "/" trennen:   "was/were"
 // - Optionale Teile in Klammern:                  "(to) go"
 
@@ -405,55 +409,73 @@ const RAW = [
     ],
   },
   {
-    // Abfrage nur Deutsch/Grundform -> Englisch (Simple Past)
-    id: 'verben', title: 'Unregelmäßige Verben', emoji: '🔁', oneWay: true,
+    // Abfrage nur Grundform -> Simple Past
+    id: 'verben', title: 'Unregelmäßige Verben', emoji: '🔁', type: 'grammar',
+    task: 'Schreib das Simple Past:',
+    rule: 'Unregelmäßige Verben bekommen kein -ed – ihre Simple-Past-Form muss man auswendig lernen.\nTipp: Lern sie in Gruppen, die ähnlich klingen: buy – bought, bring – brought, think – thought.',
     words: [
-      ['was/were', 'be (sein)', 'Simple Past'],
-      ['had', 'have (haben)', 'Simple Past'],
-      ['went', 'go (gehen)', 'Simple Past'],
-      ['came', 'come (kommen)', 'Simple Past'],
-      ['saw', 'see (sehen)', 'Simple Past'],
-      ['did', 'do (tun)', 'Simple Past'],
-      ['got', 'get (bekommen)', 'Simple Past'],
-      ['made', 'make (machen)', 'Simple Past'],
-      ['took', 'take (nehmen)', 'Simple Past'],
-      ['gave', 'give (geben)', 'Simple Past'],
-      ['ate', 'eat (essen)', 'Simple Past'],
-      ['drank', 'drink (trinken)', 'Simple Past'],
-      ['wrote', 'write (schreiben)', 'Simple Past'],
-      ['read', 'read (lesen)', 'Simple Past'],
-      ['bought', 'buy (kaufen)', 'Simple Past'],
-      ['brought', 'bring (bringen)', 'Simple Past'],
-      ['thought', 'think (denken)', 'Simple Past'],
-      ['found', 'find (finden)', 'Simple Past'],
-      ['said', 'say (sagen)', 'Simple Past'],
-      ['told', 'tell (erzählen)', 'Simple Past'],
-      ['knew', 'know (wissen)', 'Simple Past'],
-      ['met', 'meet (treffen)', 'Simple Past'],
-      ['ran', 'run (rennen)', 'Simple Past'],
-      ['swam', 'swim (schwimmen)', 'Simple Past'],
-      ['sang', 'sing (singen)', 'Simple Past'],
-      ['began', 'begin (beginnen)', 'Simple Past'],
-      ['left', 'leave (verlassen)', 'Simple Past'],
-      ['lost', 'lose (verlieren)', 'Simple Past'],
-      ['won', 'win (gewinnen)', 'Simple Past'],
-      ['felt', 'feel (fühlen)', 'Simple Past'],
-      ['slept', 'sleep (schlafen)', 'Simple Past'],
-      ['wore', 'wear (tragen)', 'Simple Past'],
-      ['flew', 'fly (fliegen)', 'Simple Past'],
-      ['caught', 'catch (fangen)', 'Simple Past'],
-      ['taught', 'teach (unterrichten)', 'Simple Past'],
-      ['put', 'put (legen, stellen)', 'Simple Past'],
-      ['sat', 'sit (sitzen)', 'Simple Past'],
-      ['stood', 'stand (stehen)', 'Simple Past'],
-      ['heard', 'hear (hören)', 'Simple Past'],
-      ['spoke', 'speak (sprechen)', 'Simple Past'],
+      ['was/were', 'be (sein)'],
+      ['had', 'have (haben)'],
+      ['went', 'go (gehen)'],
+      ['came', 'come (kommen)'],
+      ['saw', 'see (sehen)'],
+      ['did', 'do (tun)'],
+      ['got', 'get (bekommen)'],
+      ['made', 'make (machen)'],
+      ['took', 'take (nehmen)'],
+      ['gave', 'give (geben)'],
+      ['ate', 'eat (essen)'],
+      ['drank', 'drink (trinken)'],
+      ['wrote', 'write (schreiben)'],
+      ['read', 'read (lesen)'],
+      ['bought', 'buy (kaufen)'],
+      ['brought', 'bring (bringen)'],
+      ['thought', 'think (denken)'],
+      ['found', 'find (finden)'],
+      ['said', 'say (sagen)'],
+      ['told', 'tell (erzählen)'],
+      ['knew', 'know (wissen)'],
+      ['met', 'meet (treffen)'],
+      ['ran', 'run (rennen)'],
+      ['swam', 'swim (schwimmen)'],
+      ['sang', 'sing (singen)'],
+      ['began', 'begin (beginnen)'],
+      ['left', 'leave (verlassen)'],
+      ['lost', 'lose (verlieren)'],
+      ['won', 'win (gewinnen)'],
+      ['felt', 'feel (fühlen)'],
+      ['slept', 'sleep (schlafen)'],
+      ['wore', 'wear (tragen)'],
+      ['flew', 'fly (fliegen)'],
+      ['caught', 'catch (fangen)'],
+      ['taught', 'teach (unterrichten)'],
+      ['put', 'put (legen, stellen)'],
+      ['sat', 'sit (sitzen)'],
+      ['stood', 'stand (stehen)'],
+      ['heard', 'hear (hören)'],
+      ['spoke', 'speak (sprechen)'],
     ],
   },
 ];
 
-export const BUILTIN_LISTS = RAW.map((l) => ({
+// Sprachen der App (Fächer). "voice" = Sprachausgabe, "ink" = Handschrifterkennung
+export const LANGUAGES = {
+  en: { name: 'Englisch', flag: '🇬🇧', voice: 'en-GB', ink: 'en' },
+  fr: { name: 'Französisch', flag: '🇫🇷', voice: 'fr-FR', ink: 'fr' },
+};
+
+const prepare = (lang, type) => (l) => ({
+  type,
   ...l,
+  lang,
   builtin: true,
   words: l.words.map(([en, de, hint]) => ({ en, de, hint: hint || '' })),
-}));
+});
+
+// Grammatik wird nur in eine Richtung abgefragt (Aufgabe -> Lösung)
+export const BUILTIN_LISTS = [
+  ...RAW.map(prepare('en', 'vocab')),
+  ...ENGLISH_GRAMMAR.map(prepare('en', 'grammar')),
+  ...FRENCH_LISTS.map(prepare('fr', 'vocab')),
+  ...FRENCH_GRAMMAR.map(prepare('fr', 'grammar')),
+];

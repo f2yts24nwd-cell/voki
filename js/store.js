@@ -9,7 +9,8 @@ const INTERVALS = [0, 1, 2, 4, 8, 16, 32];
 export const MAX_BOX = INTERVALS.length - 1;
 
 export const DEFAULT_SETTINGS = {
-  direction: 'de-en',      // 'de-en' | 'en-de' | 'mixed'
+  subject: 'en',           // aktuelles Fach: 'en' | 'fr'
+  direction: 'de-en',      // 'de-en' = Deutsch ➜ Fremdsprache | 'en-de' = umgekehrt | 'mixed'
   engine: 'auto',          // 'auto' | 'native' | 'google' | 'keyboard'
   tolerance: 1,            // 1 = streng (nur bestes Ergebnis zählt), 3 = großzügig
   caseSensitive: false,
@@ -64,8 +65,12 @@ export function resetProgress() {
 
 // ---------- Listen ----------
 
-export function allLists() {
-  return [...BUILTIN_LISTS, ...store.custom];
+// Eigene Listen von vor der Französisch-Erweiterung haben keine Sprache -> Englisch
+const customLists = () => store.custom.map((l) => ({ type: 'vocab', lang: 'en', ...l }));
+
+export function allLists(lang) {
+  const lists = [...BUILTIN_LISTS, ...customLists()];
+  return lang ? lists.filter((l) => l.lang === lang) : lists;
 }
 
 export function getList(id) {
@@ -77,7 +82,15 @@ export function wordId(list, w) {
 }
 
 export function wordsOf(list) {
-  return list.words.map((w) => ({ ...w, id: wordId(list, w), listId: list.id, oneWay: !!list.oneWay }));
+  return list.words.map((w) => ({
+    ...w,
+    id: wordId(list, w),
+    listId: list.id,
+    lang: list.lang || 'en',
+    oneWay: list.type === 'grammar',
+    task: list.task || '',
+    rule: list.rule || '',
+  }));
 }
 
 export function saveCustomList(list) {
@@ -187,8 +200,8 @@ export function listStats(list) {
   };
 }
 
-export function dueWords() {
+export function dueWords(lang) {
   const now = Date.now();
-  return allLists().flatMap(wordsOf).filter((w) => isDue(w.id, now))
+  return allLists(lang).flatMap(wordsOf).filter((w) => isDue(w.id, now))
     .sort((a, b) => store.progress[a.id].due - store.progress[b.id].due);
 }
