@@ -1,6 +1,6 @@
 // Service Worker: hält die App offline verfügbar.
 // Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'voki-v1';
+const VERSION = 'voki-v2';
 const FILES = [
   './',
   'index.html',
@@ -12,6 +12,8 @@ const FILES = [
   'js/check.js',
   'js/store.js',
   'js/vocab.js',
+  'js/vocab-fr.js',
+  'js/grammar.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',

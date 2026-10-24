@@ -1,7 +1,7 @@
 {
   "name": "Voki – Vokabeln mit dem Stift",
   "short_name": "Voki",
-  "description": "Englisch-Vokabeln Klasse 6 mit dem Stift schreiben und automatisch prüfen lassen.",
+  "description": "Englisch- und Französisch-Vokabeln und Grammatik mit dem Stift schreiben und automatisch prüfen lassen.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

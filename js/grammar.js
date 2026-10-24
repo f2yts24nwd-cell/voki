@@ -1,0 +1,140 @@
+// Grammatik-Übungen: Lückensätze, man schreibt nur das fehlende Wort.
+// Format je Eintrag: [lösung, aufgabe, hinweis?]   ("___" markiert die Lücke)
+// "rule" wird vor dem Üben und bei Fehlern als Merkhilfe angezeigt.
+
+export const ENGLISH_GRAMMAR = [
+  {
+    id: 'g-en-past-reg', title: 'Simple Past (regelmäßig)', emoji: '⏪',
+    task: 'Schreib das Simple Past:',
+    rule: 'Regelmäßige Verben bekommen -ed: play → played.\nEndet das Verb auf -e, kommt nur -d dazu: live → lived.\nKonsonant + y wird zu -ied: try → tried.\nKurzer betonter Vokal + ein Konsonant: Konsonant verdoppeln: stop → stopped.',
+    words: [
+      ['played', 'play'], ['watched', 'watch'], ['visited', 'visit'], ['lived', 'live'],
+      ['liked', 'like'], ['tried', 'try'], ['carried', 'carry'], ['studied', 'study'],
+      ['stopped', 'stop'], ['planned', 'plan'], ['dropped', 'drop'], ['stayed', 'stay'],
+    ],
+  },
+  {
+    id: 'g-en-progressive', title: 'Present Progressive', emoji: '▶️',
+    task: 'Setz die richtige Form ein:',
+    rule: 'Was gerade passiert: am / is / are + Verb mit -ing.\nI am reading. – She is reading. – They are reading.\nSignalwörter: now, right now, at the moment, Look!, Listen!\nAchtung: swim → swimming, write → writing.',
+    words: [
+      ['is reading', 'She ___ a book right now.', 'read'],
+      ['are playing', 'They ___ football at the moment.', 'play'],
+      ['am swimming', 'Look! I ___ .', 'swim'],
+      ['is running', 'Look! The dog ___ .', 'run'],
+      ['are watching', 'We ___ TV now.', 'watch'],
+      ['is writing', 'Tom ___ a letter.', 'write'],
+      ['are you doing', 'What ___ ?', 'you / do'],
+      ['isn\'t sleeping/is not sleeping', 'The baby ___ .', 'not sleep'],
+    ],
+  },
+  {
+    id: 'g-en-compare', title: 'Steigerung', emoji: '📈',
+    task: 'Schreib die gesuchte Form:',
+    rule: 'Kurze Adjektive: -er / -est: small → smaller → smallest.\nbig → bigger (Konsonant verdoppeln), happy → happier (y → i).\nLange Adjektive: more / most: interesting → more interesting → most interesting.\nUnregelmäßig: good → better → best, bad → worse → worst.',
+    words: [
+      ['smaller', 'small', 'Komparativ'],
+      ['biggest', 'big', 'Superlativ'],
+      ['happier', 'happy', 'Komparativ'],
+      ['funniest', 'funny', 'Superlativ'],
+      ['more interesting', 'interesting', 'Komparativ'],
+      ['most expensive', 'expensive', 'Superlativ'],
+      ['better', 'good', 'Komparativ'],
+      ['best', 'good', 'Superlativ'],
+      ['worse', 'bad', 'Komparativ'],
+      ['worst', 'bad', 'Superlativ'],
+    ],
+  },
+  {
+    id: 'g-en-some-any', title: 'some oder any?', emoji: '🍪',
+    task: 'some oder any?',
+    rule: 'some: in bejahten Sätzen und bei Angeboten/Bitten (Would you like some tea?).\nany: in verneinten Sätzen und in Fragen.',
+    words: [
+      ['some', 'I\'ve got ___ sweets.'],
+      ['any', 'Are there ___ apples?'],
+      ['any', 'There isn\'t ___ milk.'],
+      ['some', 'Would you like ___ tea?'],
+      ['any', 'Have you got ___ pets?'],
+      ['some', 'We need ___ bread.'],
+      ['any', 'I haven\'t got ___ money.'],
+      ['some', 'Can I have ___ water, please?'],
+    ],
+  },
+  {
+    id: 'g-en-plural', title: 'Besondere Pluralformen', emoji: '👥',
+    task: 'Schreib den Plural:',
+    rule: 'Normal: -s (cat → cats). Nach s, sh, ch, x: -es (box → boxes).\nKonsonant + y → -ies (city → cities). -f/-fe → -ves (knife → knives).\nUnregelmäßig: child → children, man → men, woman → women, person → people, foot → feet, tooth → teeth, mouse → mice, sheep → sheep.',
+    words: [
+      ['children', 'child'], ['men', 'man'], ['women', 'woman'], ['people', 'person'],
+      ['feet', 'foot'], ['teeth', 'tooth'], ['mice', 'mouse'], ['sheep', 'sheep'],
+      ['boxes', 'box'], ['cities', 'city'], ['knives', 'knife'], ['buses', 'bus'],
+    ],
+  },
+];
+
+export const FRENCH_GRAMMAR = [
+  {
+    id: 'g-fr-etre', title: 'être (sein)', emoji: '🧩',
+    task: 'Setz die richtige Form von être ein:',
+    rule: 'je suis – ich bin\ntu es – du bist\nil / elle / on est – er / sie / man ist\nnous sommes – wir sind\nvous êtes – ihr seid / Sie sind\nils / elles sont – sie sind',
+    words: [
+      ['suis', 'Je ___ de Paris.'],
+      ['es', 'Tu ___ où ?'],
+      ['est', 'Léo ___ dans la classe de Gabin.'],
+      ['est', 'Elle ___ sympa.'],
+      ['sommes', 'Nous ___ en retard.'],
+      ['êtes', 'Vous ___ en sixième ?'],
+      ['sont', 'Ils ___ dans le club de théâtre.'],
+      ['sont', 'Elles ___ ensemble.'],
+      ['est', 'On ___ à Blois.'],
+      ['suis', 'Moi, je ___ dans le quartier.'],
+    ],
+  },
+  {
+    id: 'g-fr-cest', title: 'c\'est oder ce sont?', emoji: '👉',
+    task: 'c\'est oder ce sont?',
+    rule: 'c\'est + eine Person / ein Ding: C\'est Léa.\nce sont + mehrere Personen / Dinge: Ce sont Gabriel et Mehdi.\nFrage: C\'est qui ? – Wer ist das?',
+    words: [
+      ['Ce sont', '___ Gabriel et Mehdi.'],
+      ['C\'est', '___ Léa.'],
+      ['C\'est', '___ le chien de Kilian.'],
+      ['Ce sont', '___ les tortues de Philippe.'],
+      ['Ce sont', '___ Victor et Sasha.'],
+      ['C\'est', '___ mon amie.'],
+      ['Ce sont', '___ les chats d\'Éva et Sara.'],
+      ['C\'est', '___ la rue de Belleville.'],
+    ],
+  },
+  {
+    id: 'g-fr-pluriel', title: 'Artikel & Plural', emoji: '🐱',
+    task: 'Schreib den Plural mit Artikel:',
+    rule: 'Bestimmter Artikel Singular: le (männlich), la (weiblich), l\' (vor Vokal oder stummem h).\nPlural immer: les – und an das Nomen kommt meist ein -s (das man nicht hört).\nle chat → les chats, la tortue → les tortues, le jeu → les jeux.',
+    words: [
+      ['les chats', 'le chat'],
+      ['les tortues', 'la tortue'],
+      ['les chiens', 'le chien'],
+      ['les poissons', 'le poisson'],
+      ['les amis', 'l\'ami'],
+      ['les filles', 'la fille'],
+      ['les garçons', 'le garçon'],
+      ['les jeux vidéo', 'le jeu vidéo'],
+      ['les hôtels', 'l\'hôtel'],
+      ['les musées', 'le musée'],
+    ],
+  },
+  {
+    id: 'g-fr-praep', title: 'de, à, en, dans', emoji: '📍',
+    task: 'Setz die richtige Präposition ein:',
+    rule: 'de = aus (Herkunft): Je suis de Paris. (vor Vokal: d\'Erfurt)\nà = in (Stadt): Je suis à Paris.\nen = in (Land, weiblich): Je suis en France.\ndans = in (drinnen): Je suis dans la classe de Gabin.',
+    words: [
+      ['de', 'Je suis ___ Paris.', 'aus'],
+      ['à', 'Je suis ___ Paris.', 'in'],
+      ['en', 'Je suis ___ France.', 'in'],
+      ['dans', 'Je suis ___ la classe de Gabin.', 'in'],
+      ['de', 'Elle est ___ Berlin.', 'aus'],
+      ['à', 'Nous sommes ___ Blois.', 'in'],
+      ['dans', 'J\'habite ___ le quartier.', 'in'],
+      ['en', 'Ils sont ___ Tunisie.', 'in'],
+    ],
+  },
+];

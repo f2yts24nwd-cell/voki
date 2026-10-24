@@ -20,6 +20,15 @@
   color-scheme: light;
 }
 
+/* Französisch: eigene Farbe, damit die Bereiche klar getrennt sind */
+:root[data-subject="fr"] {
+  --bg: #ecfeff;
+  --primary: #0e7490;
+  --border: #cffafe;
+  --pad-line: #a5f3fc;
+  --pad-guide: rgba(14, 116, 144, 0.2);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #111027;
@@ -37,6 +46,15 @@
     --pad-bg: #f8f7ee;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
     color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-subject="fr"] {
+    --bg: #071d24;
+    --surface: #0f2e38;
+    --primary: #22d3ee;
+    --border: #164e5c;
   }
 }
 
@@ -65,7 +83,7 @@ code { background: var(--border); padding: 1px 5px; border-radius: 6px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.875rem; }
 .center { text-align: center; }
-.hidden { display: none !important; }
+.hidden, [hidden] { display: none !important; }
 
 .top {
   display: grid;
@@ -290,4 +308,53 @@ legend { font-weight: 700; float: left; width: 100%; margin-bottom: 4px; }
   .tools { gap: 6px; }
   .tool { width: 44px; height: 48px; font-size: 1.1rem; }
   .tools .check { white-space: nowrap; padding: 10px 12px; }
+}
+
+/* ---------- Fächer & Grammatik ---------- */
+
+html, body { transition: background 0.2s; }
+
+.subjects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.subject {
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+.subject .flag { font-size: 1.3rem; vertical-align: -2px; }
+.subject.active { background: var(--primary); color: var(--primary-text); }
+
+.rule { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px 18px 14px; margin-top: 16px; border-left: 6px solid var(--primary); }
+.rule h2 { margin: 12px 0 6px; }
+.rule p { margin: 0; line-height: 1.6; }
+.msg.rule-hint { background: var(--surface); color: var(--text); font-weight: 400; font-size: 0.95rem; border-left: 5px solid var(--primary); line-height: 1.5; }
+
+.gap { display: inline-block; min-width: 2.5em; border-bottom: 3px solid var(--primary); margin: 0 4px; }
+.words.grammar .en { color: var(--primary); }
+
+.accents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.accents button {
+  min-width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
 }

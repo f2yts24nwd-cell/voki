@@ -1,4 +1,4 @@
-# ✏️ Voki – Englisch-Vokabeln mit dem Stift
+# ✏️ Voki – Englisch- und Französisch-Vokabeln mit dem Stift
 
 Ein Vokabeltrainer (ähnlich wie cabuu) als **Progressive Web App**: Man sieht das deutsche Wort,
 schreibt das englische Wort **mit dem Stift (oder Finger)** auf die Schreibfläche, und Voki erkennt
@@ -6,8 +6,14 @@ die Handschrift und prüft, ob es richtig geschrieben ist.
 
 ## Funktionen
 
-- **16 Themen für Englisch Klasse 6** (orientiert am Bildungsplan Baden-Württemberg, ca. 350 Wörter),
-  inkl. **unregelmäßiger Verben (Simple Past)**
+- **Zwei getrennte Bereiche: 🇬🇧 Englisch und 🇫🇷 Französisch** – umschaltbar oben auf der Startseite,
+  jeder Bereich mit eigener Farbe, eigenen Listen und eigener Wiederholung
+- **Englisch Klasse 6**: 15 Wortschatz-Themen (orientiert am Bildungsplan Baden-Württemberg, ca. 320 Wörter)
+- **Französisch 1. Lernjahr**: Unité 1 (Volet 1 + 2, thematischer Wortschatz), Begrüßung, Zahlen 0–20
+- **Grammatik** als Lückensätze mit Merkregel (wird bei Fehlern angezeigt):
+  - Englisch: Simple Past (regelmäßig + unregelmäßige Verben), Present Progressive, Steigerung, some/any, Plural
+  - Französisch: être, c'est / ce sont, Artikel & Plural, de / à / en / dans
+- Französisch: Akzente zählen mit (é ≠ e), beim Tippen gibt es eine Akzent-Leiste
 - **Eigene Listen** für die Wörter aus dem Schulbuch (z. B. „Unit 3“) – einfach `englisch = deutsch` pro Zeile
 - **Handschrifterkennung** für Apple Pencil, Android-Stift, Finger oder Maus
 - **Neue Wörter einprägen**: neues Wort wird gezeigt, vorgelesen und einmal abgeschrieben
@@ -62,7 +68,9 @@ npx http-server -c-1 .
 | `js/recognizer.js` | Handschrifterkennung |
 | `js/check.js` | Vergleich Antwort ↔ Lösung, Fehlermarkierung |
 | `js/store.js` | Speicherung, Karteikasten, eigene Listen |
-| `js/vocab.js` | Mitgelieferte Wortlisten |
+| `js/vocab.js` | Englische Wortlisten, Sprachen, Zusammenführung aller Listen |
+| `js/vocab-fr.js` | Französische Wortlisten |
+| `js/grammar.js` | Grammatik-Übungen (Englisch und Französisch) |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
 
 Wenn du Dateien änderst, in `sw.js` die `VERSION` erhöhen, damit installierte Apps das Update laden.

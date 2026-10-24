@@ -6,6 +6,7 @@ import {
   currentStreak, saveCustomList, deleteCustomList, parseWordLines, wordsToLines,
   exportData, importData, resetProgress, MAX_BOX,
 } from './store.js';
+import { LANGUAGES } from './vocab.js';
 
 const app = document.getElementById('app');
 let cleanup = () => {};
@@ -48,6 +49,17 @@ function speak(text, lang = 'en-GB') {
   speechSynthesis.speak(u);
 }
 
+const langInfo = (lang) => LANGUAGES[lang] || LANGUAGES.en;
+const sayWord = (w) => speak(w.en, langInfo(w.lang).voice);
+
+// Farbe und Kopfzeile je Fach (Englisch / Französisch)
+function setSubject(lang) {
+  document.documentElement.dataset.subject = lang;
+}
+
+// "___" in Grammatik-Aufgaben als Lücke darstellen
+const withGap = (text) => esc(text).replace(/_{2,}/g, '<span class="gap">&nbsp;</span>');
+
 function setTitle(t) {
   document.title = t ? `${t} · Voki` : 'Voki – Vokabeln mit dem Stift';
 }
@@ -60,7 +72,11 @@ function route() {
   window.scrollTo(0, 0);
   const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   const [page, a, b] = parts;
-  if (page === 'liste' && getList(a)) return renderList(getList(a));
+  if (page === 'liste' && getList(a)) {
+    setSubject(getList(a).lang);
+    return renderList(getList(a));
+  }
+  setSubject(store.settings.subject);
   if (page === 'ueben') return renderPractice(a, b || 'lernen');
   if (page === 'einstellungen') return renderSettings();
   if (page === 'neu') return renderEdit(null);
@@ -85,9 +101,13 @@ function listCard(list) {
 
 function renderHome() {
   setTitle('');
-  const due = dueWords();
-  const lists = allLists();
+  const subject = store.settings.subject;
+  const L = langInfo(subject);
+  const due = dueWords(subject);
+  const lists = allLists(subject);
   const mastered = lists.reduce((n, l) => n + listStats(l).mastered, 0);
+  const vocab = lists.filter((l) => l.builtin && l.type === 'vocab');
+  const grammar = lists.filter((l) => l.builtin && l.type === 'grammar');
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
@@ -96,6 +116,12 @@ function renderHome() {
       <h1>✏️ Voki</h1>
       <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen">⚙️</a>
     </header>
+    <nav class="subjects" role="tablist">
+      ${Object.entries(LANGUAGES).map(([code, l]) => `
+        <button class="subject ${code === subject ? 'active' : ''}" role="tab" aria-selected="${code === subject}" data-subject="${code}">
+          <span class="flag">${l.flag}</span> ${l.name}
+        </button>`).join('')}
+    </nav>
     <section class="hero">
       <div class="stats">
         <div><b>🔥 ${currentStreak()}</b><span>Tage in Folge</span></div>
@@ -103,20 +129,27 @@ function renderHome() {
         <div><b>🧠 ${mastered}</b><span>Wörter sicher</span></div>
       </div>
       ${due.length
-        ? `<a class="btn primary big" href="#/ueben/_faellig/wiederholen">Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
-        : `<p class="muted center">Heute ist nichts zu wiederholen. Such dir ein Thema aus und lern neue Wörter! 🚀</p>`}
+        ? `<a class="btn primary big" href="#/ueben/_faellig-${subject}/wiederholen">${L.flag} Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
+        : `<p class="muted center">In ${L.name} ist heute nichts zu wiederholen. Such dir ein Thema aus und lern neue Wörter! 🚀</p>`}
     </section>
     ${installPrompt ? '<button class="btn install" id="install">📲 Voki als App installieren</button>' : ''}
     ${isIOS && !standalone ? '<p class="tip">📲 Tipp: Im Safari auf <b>Teilen</b> ➜ <b>Zum Home-Bildschirm</b> tippen, dann startet Voki wie eine App.</p>' : ''}
-    <h2>Themen Klasse 6</h2>
-    <div class="grid">${lists.filter((l) => l.builtin).map(listCard).join('')}</div>
-    <h2>Meine Listen</h2>
-    <p class="muted small">Leg hier die Wörter aus deinem Englischbuch an (z.&nbsp;B. „Unit 3“).</p>
+    <h2>📚 Vokabeln</h2>
+    <div class="grid">${vocab.map(listCard).join('')}</div>
+    <h2>🧩 Grammatik</h2>
+    <div class="grid">${grammar.map(listCard).join('')}</div>
+    <h2>✏️ Meine Listen</h2>
+    <p class="muted small">Leg hier die Wörter aus deinem ${L.name}buch an (z.&nbsp;B. „${subject === 'fr' ? 'Unité 2' : 'Unit 3'}“).</p>
     <div class="grid">
       ${lists.filter((l) => !l.builtin).map(listCard).join('')}
       <a class="topic add" href="#/neu"><span class="topic-emoji">➕</span><span class="topic-title">Neue Liste</span></a>
     </div>
   `;
+  app.querySelectorAll('[data-subject]').forEach((b) => b.addEventListener('click', () => {
+    store.settings.subject = b.dataset.subject;
+    save();
+    route();
+  }));
   document.getElementById('install')?.addEventListener('click', async () => {
     installPrompt.prompt();
     await installPrompt.userChoice;
@@ -137,6 +170,11 @@ function renderList(list) {
   setTitle(list.title);
   const s = listStats(list);
   const words = wordsOf(list);
+  const isGrammar = list.type === 'grammar';
+  if (store.settings.subject !== list.lang) {
+    store.settings.subject = list.lang;
+    save();
+  }
   app.innerHTML = `
     <header class="top">
       <a class="icon-btn" href="#/" aria-label="Zurück">←</a>
@@ -145,40 +183,42 @@ function renderList(list) {
     </header>
     <section class="hero">
       <div class="stats">
-        <div><b>${s.total}</b><span>Wörter</span></div>
+        <div><b>${s.total}</b><span>${isGrammar ? 'Aufgaben' : 'Wörter'}</span></div>
         <div><b>${s.mastered}</b><span>sicher</span></div>
         <div><b>${s.due}</b><span>fällig</span></div>
       </div>
       <div class="meter big"><span style="width:${s.percent}%"></span></div>
       ${s.total ? `
         <a class="btn primary big" href="#/ueben/${encodeURIComponent(list.id)}/lernen">✍️ Lernen</a>
-        <a class="btn big" href="#/ueben/${encodeURIComponent(list.id)}/test">📝 Test: alle ${s.total} Wörter</a>
+        <a class="btn big" href="#/ueben/${encodeURIComponent(list.id)}/test">📝 Test: alle ${s.total} ${isGrammar ? 'Aufgaben' : 'Wörter'}</a>
       ` : '<p class="muted center">Diese Liste ist noch leer.</p>'}
     </section>
-    <ul class="words">
+    ${list.rule ? `<section class="rule"><h2>📖 Regel</h2><p>${esc(list.rule).replace(/\n/g, '<br>')}</p></section>` : ''}
+    <ul class="words ${isGrammar ? 'grammar' : ''}">
       ${words.map((w) => {
         const p = progressOf(w.id);
         const box = p ? p.box : 0;
         return `
         <li>
           <button class="speak" data-say="${esc(w.en)}" aria-label="Vorlesen">🔊</button>
-          <span class="en">${esc(w.en)}</span>
-          <span class="de">${esc(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span>
+          ${isGrammar
+            ? `<span class="de">${withGap(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span><span class="en">${esc(w.en)}</span>`
+            : `<span class="en">${esc(w.en)}</span><span class="de">${esc(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span>`}
           <span class="dots" title="Fach ${box} von ${MAX_BOX}">${'●'.repeat(box)}${'○'.repeat(MAX_BOX - box)}</span>
         </li>`;
       }).join('')}
     </ul>
   `;
-  app.querySelectorAll('[data-say]').forEach((b) => b.addEventListener('click', () => speak(b.dataset.say)));
+  app.querySelectorAll('[data-say]').forEach((b) => b.addEventListener('click', () => speak(b.dataset.say, langInfo(list.lang).voice)));
 }
 
 // ---------- Üben ----------
 
-function buildSession(listId, mode) {
+function buildSession(listId, mode, lang) {
   const size = store.settings.sessionSize;
   let words;
   if (mode === 'wiederholen') {
-    words = shuffle(dueWords().slice(0, 20));
+    words = shuffle(dueWords(lang).slice(0, 20));
   } else if (mode === 'fehler') {
     words = shuffle(lastMistakes);
   } else {
@@ -203,19 +243,25 @@ function buildSession(listId, mode) {
     let dir = store.settings.direction;
     if (w.oneWay) dir = 'de-en';
     else if (dir === 'mixed') dir = Math.random() < 0.5 ? 'de-en' : 'en-de';
-    // Neue Wörter werden im Lernmodus erst gezeigt und abgeschrieben (Einprägen)
-    if (mode === 'lernen' && !progressOf(w.id)) items.push({ word: w, dir, kind: 'intro' });
+    // Neue Wörter werden im Lernmodus erst gezeigt und abgeschrieben (Einprägen).
+    // Bei Grammatik steht stattdessen die Regel auf der Listenseite.
+    if (mode === 'lernen' && !w.oneWay && !progressOf(w.id)) items.push({ word: w, dir, kind: 'intro' });
     else items.push({ word: w, dir, kind: 'ask' });
   }
   return items;
 }
 
 function renderPractice(listId, mode) {
-  const list = listId === '_faellig' ? { id: '_faellig', title: 'Wiederholen', emoji: '🔁' } : getList(listId);
+  // "_faellig-en" / "_faellig-fr": alle fälligen Wörter eines Fachs
+  const dueLang = listId?.startsWith('_faellig-') ? listId.slice(9) : null;
+  const list = dueLang && LANGUAGES[dueLang]
+    ? { id: listId, title: 'Wiederholen', emoji: '🔁', lang: dueLang, due: true }
+    : getList(listId);
   if (!list) return go('#/');
+  setSubject(list.lang);
   if (mode === 'fehler' && !lastMistakes.length) return go(`#/liste/${encodeURIComponent(listId)}`);
-  const backHash = list.id === '_faellig' ? '#/' : `#/liste/${encodeURIComponent(list.id)}`;
-  const queue = buildSession(list.id, mode);
+  const backHash = list.due ? '#/' : `#/liste/${encodeURIComponent(list.id)}`;
+  const queue = buildSession(list.id, mode, list.lang);
   if (!queue.length) return go(backHash);
   setTitle(list.title);
 
@@ -249,6 +295,9 @@ function renderPractice(listId, mode) {
       <div class="pad-wrap" id="padWrap">
         <canvas id="pad" aria-label="Schreibfläche"></canvas>
         <input id="kbd" class="kbd" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Hier tippen …" hidden>
+        <div class="accents" id="accents" hidden>
+          ${[...'éèêëàâçîïôùûœ'].map((c) => `<button type="button" data-char="${c}">${c}</button>`).join('')}
+        </div>
       </div>
       <div class="tools" id="tools">
         <button class="tool" id="undo" aria-label="Rückgängig">↶</button>
@@ -279,7 +328,13 @@ function renderPractice(listId, mode) {
   const item = () => S.queue[S.pos];
   const answerOf = (it) => (it.dir === 'de-en' ? it.word.en : it.word.de);
   const promptOf = (it) => (it.dir === 'de-en' ? it.word.de : it.word.en);
-  const langOf = (it) => (it.dir === 'de-en' ? 'en' : 'de');
+  // Sprache der erwarteten Antwort (für Handschrifterkennung)
+  const langOf = (it) => (it.dir === 'de-en' ? langInfo(it.word.lang).ink : 'de');
+
+  // Akzent-Leiste nur beim Tippen auf Französisch
+  function updateAccents() {
+    $('accents').hidden = !(S.keyboard && S.queue[S.pos] && langOf(S.queue[S.pos]) === 'fr');
+  }
 
   function setKeyboard(on) {
     S.keyboard = on;
@@ -288,6 +343,7 @@ function renderPractice(listId, mode) {
     $('kbdToggle').classList.toggle('on', on);
     if (on) setTimeout(() => kbd.focus(), 50);
     else pad.resize();
+    updateAccents();
     updateTools();
   }
 
@@ -313,25 +369,30 @@ function renderPractice(listId, mode) {
     pad.clear();
     kbd.value = '';
 
-    const target = langOf(it) === 'en' ? 'Englisch' : 'Deutsch';
+    const target = it.dir === 'de-en' ? langInfo(it.word.lang).name : 'Deutsch';
     if (it.kind === 'intro') {
       S.phase = 'copy';
       $('label').textContent = '✨ Neues Wort – schreib es einmal ab';
       $('prompt').innerHTML = `${esc(it.word.en)} <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>`;
       $('hint').innerHTML = `${esc(it.word.de)}${it.word.hint ? ` <small>(${esc(it.word.hint)})</small>` : ''}`;
-      pad.setGuide(answerOf({ ...it, dir: 'de-en' }));
-      if (store.settings.speak) speak(it.word.en);
+      pad.setGuide(it.word.en);
+      if (store.settings.speak) sayWord(it.word);
+    } else if (it.word.oneWay) {
+      S.phase = 'ask';
+      $('label').textContent = it.word.task || `Schreib auf ${target}:`;
+      $('prompt').innerHTML = withGap(it.word.de);
+      $('hint').innerHTML = it.word.hint ? `(${esc(it.word.hint)})` : '';
+      pad.setGuide('');
     } else {
       S.phase = 'ask';
-      $('label').textContent = it.word.oneWay && it.word.hint
-        ? `Schreib das ${it.word.hint}:`
-        : `Schreib auf ${target}:`;
+      $('label').textContent = `Schreib auf ${target}:`;
       $('prompt').innerHTML = esc(promptOf(it)) + (it.dir === 'en-de' ? ' <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>' : '');
-      $('hint').innerHTML = it.word.hint && !it.word.oneWay && it.dir === 'de-en' ? `(${esc(it.word.hint)})` : '';
+      $('hint').innerHTML = it.word.hint && it.dir === 'de-en' ? `(${esc(it.word.hint)})` : '';
       pad.setGuide('');
-      if (it.dir === 'en-de' && store.settings.speak) speak(it.word.en);
+      if (it.dir === 'en-de' && store.settings.speak) sayWord(it.word);
     }
-    $('say')?.addEventListener('click', () => speak(it.word.en));
+    $('say')?.addEventListener('click', () => sayWord(it.word));
+    updateAccents();
     updateTools();
     if (S.keyboard) kbd.focus();
   }
@@ -365,7 +426,7 @@ function renderPractice(listId, mode) {
       try {
         candidates = await recognize(pad.strokes, {
           engine: store.settings.engine,
-          lang: S.phase === 'copy' && it.kind === 'intro' ? 'en' : langOf(it),
+          lang: it.kind === 'intro' ? langInfo(it.word.lang).ink : langOf(it),
           width: pad.width,
           height: pad.height,
           pointerType: pad.lastPointerType,
@@ -415,7 +476,7 @@ function renderPractice(listId, mode) {
         <div class="msg ok">${pick(['Richtig! 🎉', 'Super! ⭐', 'Klasse! 💪', 'Genau! ✅', 'Perfekt! 🌟'])}
           <span class="solution">${esc(expected)}</span></div>
         <button class="btn primary big" id="next">Weiter ➜</button>`;
-      if (store.settings.speak) speak(it.word.en);
+      if (store.settings.speak) sayWord(it.word);
       S.timer = setTimeout(next, 1600);
     } else {
       if (mode !== 'test') requeue(it, 'ask');
@@ -425,12 +486,13 @@ function renderPractice(listId, mode) {
           <div class="read">Ich habe gelesen: <b>${esc(res.read || '–')}</b></div>
           <div class="read">Richtig ist: <span class="solution">${marked}</span></div>
         </div>
+        ${it.word.rule ? `<div class="msg rule-hint">📖 ${esc(it.word.rule).replace(/\n/g, '<br>')}</div>` : ''}
         <div class="row">
           <button class="btn primary" id="copy">✍️ Richtig abschreiben</button>
           <button class="btn" id="next">Weiter ➜</button>
         </div>
         ${S.keyboard ? '' : '<button class="link" id="override">Ich hatte es richtig – die Schrift wurde falsch erkannt</button>'}`;
-      if (store.settings.speak) speak(it.word.en);
+      if (store.settings.speak) sayWord(it.word);
       $('copy').addEventListener('click', () => startCopy(it, expected));
       $('override')?.addEventListener('click', () => override(it, expected));
     }
@@ -462,7 +524,7 @@ function renderPractice(listId, mode) {
     $('card').className = 'card';
     $('label').textContent = '✍️ Schreib das Wort richtig ab:';
     $('prompt').textContent = expected;
-    $('hint').textContent = promptOf(it);
+    $('hint').innerHTML = withGap(promptOf(it));
     $('fb').innerHTML = '';
     pad.clear();
     pad.setGuide(expected);
@@ -479,7 +541,7 @@ function renderPractice(listId, mode) {
       $('fb').innerHTML = `<div class="msg ok">Gut gemacht! ✍️ <span class="solution">${esc(expected)}</span></div>
         <button class="btn primary big" id="next">Weiter ➜</button>`;
       $('next').addEventListener('click', next);
-      if (it.kind === 'intro' && store.settings.speak) speak(it.word.en);
+      if (it.kind === 'intro' && store.settings.speak) sayWord(it.word);
       S.timer = setTimeout(next, 1300);
       updateTools();
     } else {
@@ -528,6 +590,16 @@ function renderPractice(listId, mode) {
   $('check').addEventListener('click', doCheck);
   $('kbdToggle').addEventListener('click', () => setKeyboard(!S.keyboard));
   kbd.addEventListener('input', updateTools);
+  $('accents').addEventListener('pointerdown', (e) => e.preventDefault()); // Fokus im Textfeld lassen
+  $('accents').addEventListener('click', (e) => {
+    const ch = e.target.dataset?.char;
+    if (!ch) return;
+    const { selectionStart: a, selectionEnd: b, value } = kbd;
+    kbd.value = value.slice(0, a) + ch + value.slice(b);
+    kbd.setSelectionRange(a + 1, a + 1);
+    kbd.focus();
+    updateTools();
+  });
   $('tipp').addEventListener('click', () => {
     const ans = answerOf(item());
     S.usedHint = true;
@@ -547,6 +619,7 @@ function pick(arr) {
 
 function renderEdit(list) {
   setTitle(list ? list.title : 'Neue Liste');
+  const lang = list?.lang || store.settings.subject;
   app.innerHTML = `
     <header class="top">
       <a class="icon-btn" href="${list ? `#/liste/${encodeURIComponent(list.id)}` : '#/'}" aria-label="Zurück">←</a>
@@ -554,11 +627,14 @@ function renderEdit(list) {
     </header>
     <form class="form" id="form">
       <label>Name<input name="title" required maxlength="40" placeholder="z. B. Unit 3 – At the zoo" value="${esc(list?.title || '')}"></label>
+      <fieldset><legend>Sprache</legend>
+        ${Object.entries(LANGUAGES).map(([code, l]) => `<label class="choice"><input type="radio" name="lang" value="${code}" ${code === lang ? 'checked' : ''}> ${l.flag} ${l.name}</label>`).join('')}
+      </fieldset>
       <label>Symbol<input name="emoji" maxlength="4" value="${esc(list?.emoji || '📘')}"></label>
-      <label>Wörter – eins pro Zeile: <code>englisch = deutsch</code>
-        <textarea name="words" rows="14" placeholder="zoo keeper = Tierpfleger/in&#10;giraffe = Giraffe&#10;feed = füttern">${esc(list ? wordsToLines(list.words) : '')}</textarea>
+      <label>Wörter – eins pro Zeile: <code>fremdsprache = deutsch</code>
+        <textarea name="words" rows="14" placeholder="${lang === 'fr' ? 'la ville = die Stadt&#10;le cinéma = das Kino&#10;souvent = oft' : 'zoo keeper = Tierpfleger/in&#10;giraffe = Giraffe&#10;feed = füttern'}">${esc(list ? wordsToLines(list.words) : '')}</textarea>
       </label>
-      <p class="muted small">Tipps: Statt „=“ gehen auch „;“ oder ein Tabulator (Kopieren aus Excel). Mehrere richtige Lösungen mit „/“ trennen (<code>Mum/Mom</code>), optionale Teile in Klammern (<code>(to) go</code>). Ein dritter Teil wird als Hinweis angezeigt.</p>
+      <p class="muted small">Tipps: Statt „=“ gehen auch „;“ oder ein Tabulator (Kopieren aus Excel). Mehrere richtige Lösungen mit „/“ trennen (<code>Mum/Mom</code>), optionale Teile in Klammern (<code>(to) go</code>). Ein dritter Teil wird als Hinweis angezeigt. Französische Nomen am besten mit Artikel eintragen (<code>la ville</code>) – Akzente zählen mit.</p>
       <div class="row">
         <button class="btn primary" type="submit">Speichern</button>
         ${list ? '<button class="btn danger" type="button" id="del">Liste löschen</button>' : ''}
@@ -575,7 +651,9 @@ function renderEdit(list) {
       return;
     }
     const id = list?.id || 'eigene-' + Date.now().toString(36);
-    saveCustomList({ id, title: fd.get('title').trim() || 'Meine Liste', emoji: fd.get('emoji').trim() || '📘', words });
+    const listLang = fd.get('lang') || 'en';
+    store.settings.subject = listLang;
+    saveCustomList({ id, lang: listLang, type: 'vocab', title: fd.get('title').trim() || 'Meine Liste', emoji: fd.get('emoji').trim() || '📘', words });
     go(`#/liste/${encodeURIComponent(id)}`);
   });
   document.getElementById('del')?.addEventListener('click', () => {
@@ -598,9 +676,10 @@ function renderSettings() {
     </header>
     <form class="form" id="form">
       <fieldset><legend>Abfragerichtung</legend>
-        ${opt('direction', 'de-en', 'Deutsch ➜ Englisch schreiben', s.direction)}
-        ${opt('direction', 'en-de', 'Englisch ➜ Deutsch schreiben', s.direction)}
+        ${opt('direction', 'de-en', 'Deutsch ➜ Englisch/Französisch schreiben', s.direction)}
+        ${opt('direction', 'en-de', 'Englisch/Französisch ➜ Deutsch schreiben', s.direction)}
         ${opt('direction', 'mixed', 'Gemischt', s.direction)}
+        <p class="muted small">Grammatik-Übungen werden immer in der Fremdsprache beantwortet.</p>
       </fieldset>
       <fieldset><legend>Wie streng wird geprüft?</legend>
         ${opt('tolerance', 1, '<b>Streng</b> – genau so, wie die Schrift erkannt wurde (empfohlen für Rechtschreibung)', s.tolerance)}
