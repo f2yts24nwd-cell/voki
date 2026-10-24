@@ -12,7 +12,8 @@ die Handschrift und prüft, ob es richtig geschrieben ist.
 - **Französisch 1. Lernjahr**: Unité 1 (Volet 1 + 2, thematischer Wortschatz), Begrüßung, Zahlen 0–20
 - **Grammatik** als Lückensätze mit Merkregel (wird bei Fehlern angezeigt):
   - Englisch: Simple Past (regelmäßig + unregelmäßige Verben), Present Progressive, Steigerung, some/any, Plural
-  - Französisch: être, c'est / ce sont, Artikel & Plural, de / à / en / dans
+  - Französisch: être (inkl. on, vous = Sie, ils/elles), le/la/l'/les, un/une/des, c'est / ce sont, Plural, de / à / en / dans
+- Französische Nomen in Farbe: männlich blau, weiblich rot (wie im Vokabelheft)
 - Französisch: Akzente zählen mit (é ≠ e), beim Tippen gibt es eine Akzent-Leiste
 - **Eigene Listen** für die Wörter aus dem Schulbuch (z. B. „Unit 3“) – einfach `englisch = deutsch` pro Zeile
 - **Handschrifterkennung** für Apple Pencil, Android-Stift, Finger oder Maus

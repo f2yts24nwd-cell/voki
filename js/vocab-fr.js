@@ -1,6 +1,7 @@
 // Französisch, 1. Lernjahr (Klasse 6) – Wortschatz aus Unité 1 des Schulbuchs.
 // Format wie in vocab.js: [französisch, deutsch, hinweis?]
 // Nomen immer mit Artikel lernen, Akzente zählen mit.
+// Bei l' ohne eindeutige deutsche Übersetzung das Geschlecht als Hinweis angeben ('m.' / 'f.').
 
 export const FRENCH_LISTS = [
   {
@@ -36,7 +37,7 @@ export const FRENCH_LISTS = [
       ['le théâtre', 'das Theater'],
       ['le café', 'das Café', 'auch: der Kaffee'],
       ['le restaurant', 'das Restaurant'],
-      ['l\'hôtel', 'das Hotel'],
+      ['l\'hôtel', 'das Hotel', 'm.'],
       ['le musée', 'das Museum'],
       ['le métro', 'die U-Bahn, die Metro'],
       ['le supermarché', 'der Supermarkt'],

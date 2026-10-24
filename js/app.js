@@ -57,6 +57,24 @@ function setSubject(lang) {
   document.documentElement.dataset.subject = lang;
 }
 
+// Französische Nomen: männlich blau, weiblich rot (wie im Vokabelheft)
+function genderOf(w) {
+  if (w.lang !== 'fr' || w.oneWay) return '';
+  const fr = w.en.toLowerCase();
+  if (/^(le|un) /.test(fr)) return 'm';
+  if (/^(la|une) /.test(fr)) return 'f';
+  if (/^l'/.test(fr)) {
+    if (/\bm\./.test(w.hint) || /^der /.test(w.de)) return 'm';
+    if (/\bf\./.test(w.hint) || /^die /.test(w.de)) return 'f';
+  }
+  return '';
+}
+
+const foreignWord = (w) => {
+  const g = genderOf(w);
+  return g ? `<span class="g-${g}">${esc(w.en)}</span>` : esc(w.en);
+};
+
 // "___" in Grammatik-Aufgaben als Lücke darstellen
 const withGap = (text) => esc(text).replace(/_{2,}/g, '<span class="gap">&nbsp;</span>');
 
@@ -193,6 +211,7 @@ function renderList(list) {
         <a class="btn big" href="#/ueben/${encodeURIComponent(list.id)}/test">📝 Test: alle ${s.total} ${isGrammar ? 'Aufgaben' : 'Wörter'}</a>
       ` : '<p class="muted center">Diese Liste ist noch leer.</p>'}
     </section>
+    ${list.lang === 'fr' && !isGrammar && words.some(genderOf) ? '<p class="legend"><span class="g-m">■ männlich</span> <span class="g-f">■ weiblich</span></p>' : ''}
     ${list.rule ? `<section class="rule"><h2>📖 Regel</h2><p>${esc(list.rule).replace(/\n/g, '<br>')}</p></section>` : ''}
     <ul class="words ${isGrammar ? 'grammar' : ''}">
       ${words.map((w) => {
@@ -203,7 +222,7 @@ function renderList(list) {
           <button class="speak" data-say="${esc(w.en)}" aria-label="Vorlesen">🔊</button>
           ${isGrammar
             ? `<span class="de">${withGap(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span><span class="en">${esc(w.en)}</span>`
-            : `<span class="en">${esc(w.en)}</span><span class="de">${esc(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span>`}
+            : `<span class="en">${foreignWord(w)}</span><span class="de">${esc(w.de)}${w.hint ? ` <small>(${esc(w.hint)})</small>` : ''}</span>`}
           <span class="dots" title="Fach ${box} von ${MAX_BOX}">${'●'.repeat(box)}${'○'.repeat(MAX_BOX - box)}</span>
         </li>`;
       }).join('')}
@@ -373,7 +392,7 @@ function renderPractice(listId, mode) {
     if (it.kind === 'intro') {
       S.phase = 'copy';
       $('label').textContent = '✨ Neues Wort – schreib es einmal ab';
-      $('prompt').innerHTML = `${esc(it.word.en)} <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>`;
+      $('prompt').innerHTML = `${foreignWord(it.word)} <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>`;
       $('hint').innerHTML = `${esc(it.word.de)}${it.word.hint ? ` <small>(${esc(it.word.hint)})</small>` : ''}`;
       pad.setGuide(it.word.en);
       if (store.settings.speak) sayWord(it.word);
@@ -386,7 +405,7 @@ function renderPractice(listId, mode) {
     } else {
       S.phase = 'ask';
       $('label').textContent = `Schreib auf ${target}:`;
-      $('prompt').innerHTML = esc(promptOf(it)) + (it.dir === 'en-de' ? ' <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>' : '');
+      $('prompt').innerHTML = (it.dir === 'en-de' ? foreignWord(it.word) : esc(promptOf(it))) + (it.dir === 'en-de' ? ' <button class="speak inline" id="say" aria-label="Vorlesen">🔊</button>' : '');
       $('hint').innerHTML = it.word.hint && it.dir === 'de-en' ? `(${esc(it.word.hint)})` : '';
       pad.setGuide('');
       if (it.dir === 'en-de' && store.settings.speak) sayWord(it.word);
@@ -474,7 +493,7 @@ function renderPractice(listId, mode) {
     if (res.correct) {
       $('fb').innerHTML = `
         <div class="msg ok">${pick(['Richtig! 🎉', 'Super! ⭐', 'Klasse! 💪', 'Genau! ✅', 'Perfekt! 🌟'])}
-          <span class="solution">${esc(expected)}</span></div>
+          <span class="solution">${it.dir === 'de-en' ? foreignWord(it.word) : esc(expected)}</span></div>
         <button class="btn primary big" id="next">Weiter ➜</button>`;
       if (store.settings.speak) sayWord(it.word);
       S.timer = setTimeout(next, 1600);

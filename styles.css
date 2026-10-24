@@ -358,3 +358,12 @@ html, body { transition: background 0.2s; }
   font-size: 1.2rem;
   cursor: pointer;
 }
+
+/* Französisch: männlich blau, weiblich rot */
+.g-m { color: #1d4ed8; }
+.g-f { color: #dc2626; }
+@media (prefers-color-scheme: dark) {
+  .g-m { color: #93c5fd; }
+  .g-f { color: #fca5a5; }
+}
+.legend { margin: 12px 4px 0; font-size: 0.9rem; font-weight: 600; display: flex; gap: 16px; }
