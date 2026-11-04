@@ -7,6 +7,7 @@ import {
   exportData, importData, resetProgress, MAX_BOX,
 } from './store.js';
 import { LANGUAGES } from './vocab.js';
+import { renderLernen, spellOfTheDay } from './lernen.js';
 
 const app = document.getElementById('app');
 let cleanup = () => {};
@@ -15,7 +16,7 @@ let lastMistakes = [];
 let updateReady = false;
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 4;
+const APP_VERSION = 5;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -98,6 +99,11 @@ function route() {
   window.scrollTo(0, 0);
   const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
   const [page, a, b] = parts;
+  if (page === 'lernen') {
+    setSubject('learn');
+    cleanup = renderLernen(app, [a, b], { tabs: subjectTabs, bindTabs, setTitle, speak });
+    return;
+  }
   if (page === 'liste' && getList(a)) {
     setSubject(getList(a).lang);
     return renderList(getList(a));
@@ -113,6 +119,29 @@ function route() {
 window.addEventListener('hashchange', route);
 
 // ---------- Startseite ----------
+
+// Reiter oben: Englisch, Französisch und die Lern-Werkstatt
+function subjectTabs(active) {
+  return `
+    <nav class="subjects" role="tablist">
+      ${Object.entries(LANGUAGES).map(([code, l]) => `
+        <button class="subject ${code === active ? 'active' : ''}" role="tab" aria-selected="${code === active}" data-subject="${code}">
+          <span class="flag">${l.flag}</span> <span class="sname">${l.name}</span>
+        </button>`).join('')}
+      <button class="subject ${active === 'learn' ? 'active' : ''}" role="tab" aria-selected="${active === 'learn'}" data-learn>
+        <span class="flag">🧠</span> <span class="sname">Lernen</span>
+      </button>
+    </nav>`;
+}
+
+function bindTabs() {
+  app.querySelectorAll('[data-subject]').forEach((b) => b.addEventListener('click', () => {
+    store.settings.subject = b.dataset.subject;
+    save();
+    go('#/');
+  }));
+  app.querySelector('[data-learn]')?.addEventListener('click', () => go('#/lernen'));
+}
 
 function listCard(list) {
   const s = listStats(list);
@@ -142,12 +171,7 @@ function renderHome() {
       <h1>✏️ Voki</h1>
       <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen">⚙️</a>
     </header>
-    <nav class="subjects" role="tablist">
-      ${Object.entries(LANGUAGES).map(([code, l]) => `
-        <button class="subject ${code === subject ? 'active' : ''}" role="tab" aria-selected="${code === subject}" data-subject="${code}">
-          <span class="flag">${l.flag}</span> ${l.name}
-        </button>`).join('')}
-    </nav>
+    ${subjectTabs(subject)}
     <section class="hero">
       <div class="stats">
         <div><b>🔥 ${currentStreak()}</b><span>Tage in Folge</span></div>
@@ -158,6 +182,7 @@ function renderHome() {
         ? `<a class="btn primary big" href="#/ueben/_faellig-${subject}/wiederholen">${L.flag} Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
         : `<p class="muted center">In ${L.name} ist heute nichts zu wiederholen. Such dir ein Thema aus und lern neue Wörter! 🚀</p>`}
     </section>
+    <a class="spell-mini" href="#/lernen/insel/kopf">✨ <b>Zaubersatz des Tages:</b> „${esc(spellOfTheDay()[0])}“</a>
     ${installPrompt ? '<button class="btn install" id="install">📲 Voki als App installieren</button>' : ''}
     ${isIOS && !standalone ? '<p class="tip">📲 Tipp: Im Safari auf <b>Teilen</b> ➜ <b>Zum Home-Bildschirm</b> tippen, dann startet Voki wie eine App.</p>' : ''}
     <h2>📚 Vokabeln</h2>
@@ -171,11 +196,7 @@ function renderHome() {
       <a class="topic add" href="#/neu"><span class="topic-emoji">➕</span><span class="topic-title">Neue Liste</span></a>
     </div>
   `;
-  app.querySelectorAll('[data-subject]').forEach((b) => b.addEventListener('click', () => {
-    store.settings.subject = b.dataset.subject;
-    save();
-    route();
-  }));
+  bindTabs();
   document.getElementById('install')?.addEventListener('click', async () => {
     installPrompt.prompt();
     await installPrompt.userChoice;

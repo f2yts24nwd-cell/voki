@@ -27,6 +27,26 @@ die Handschrift und prüft, ob es richtig geschrieben ist.
 - Funktioniert **offline** (außer der Online-Handschrifterkennung), Fortschritt bleibt auf dem Gerät,
   Sicherung als Datei exportier-/importierbar
 
+## 🧠 Lern-Werkstatt („Lernen lernen“)
+
+Dritter Reiter neben Englisch und Französisch: Lernmethoden kindgerecht erklärt, mit Comics
+(Elara, Schaf Flocke und Alpaka Paco), Lexikon, Challenges und Stickern.
+
+- **🪜 Die Lern-Leiter**: 17 Lernmethoden in 6 Stufen von „weniger“ bis „sehr effektiv“ – jede mit
+  „Was ist das?“, „So geht’s“, Beispielen aus verschiedenen Fächern, „Warum wirkt das?“ und einer Challenge
+- **🔤 Vokabel-Profi**: die 4 Etappen Erarbeitung, Automatisierung, Testen, Wiederholen + Profi-Tipps,
+  mit Sprung in die passende Voki-Übung
+- **🔍 Aufgaben-Detektiv**: die 5 Schritte, um Aufgabenstellungen zu verstehen, und 9 interaktive
+  Fälle (Mathe, Deutsch, Bio, Erdkunde, Englisch, Französisch, Naturphänomene): leise lesen, laut lesen,
+  rückwärts lesen, Schlüsselwörter antippen, erklären – plus Operatoren-Übersicht
+- **💪 Kopf-Power**: „Dein Gehirn ist ein Muskel“ und 17 Zaubersätze zum Umdrehen, Zaubersatz des Tages
+- **📖 Lern-Lexikon**: Mindmap, Eselsbrücke, Mnemotechnik, Brain Dump, Operatoren … – Begriffe im Text
+  sind antippbar
+- **🏅 Sticker-Album**: „Hab ich ausprobiert“ bei jeder Challenge, Sticker für gelöste Fälle
+
+Die Ideen stammen von Arbeitsblättern von Caroline von St. Ange („learn learning with Caroline“) und sind
+in eigenen Worten und mit eigenen Zeichnungen umgesetzt.
+
 ## Handschrifterkennung
 
 1. **Auf dem Gerät** (offline): die eingebaute *Handwriting Recognition API* – derzeit nur in manchen

@@ -19,6 +19,11 @@ export const DEFAULT_SETTINGS = {
   sessionSize: 10,
 };
 
+// Lern-Werkstatt: ausprobierte Methoden (Sticker) und gelöste Detektiv-Fälle
+function freshLearn(l = {}) {
+  return { tried: { ...(l.tried || {}) }, cases: { ...(l.cases || {}) } };
+}
+
 function load() {
   try {
     const data = JSON.parse(localStorage.getItem(KEY) || '{}');
@@ -27,9 +32,10 @@ function load() {
       progress: data.progress || {},
       custom: data.custom || [],
       stats: { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) },
+      learn: freshLearn(data.learn),
     };
   } catch {
-    return { settings: { ...DEFAULT_SETTINGS }, progress: {}, custom: [], stats: { xp: 0, streak: 0, lastDay: '' } };
+    return { settings: { ...DEFAULT_SETTINGS }, progress: {}, custom: [], stats: { xp: 0, streak: 0, lastDay: '' }, learn: freshLearn() };
   }
 }
 
@@ -54,13 +60,39 @@ export function importData(json) {
   store.progress = data.progress || {};
   store.custom = data.custom || [];
   store.stats = { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) };
+  store.learn = freshLearn(data.learn);
   save();
 }
 
 export function resetProgress() {
   store.progress = {};
   store.stats = { xp: 0, streak: 0, lastDay: '' };
+  store.learn = freshLearn();
   save();
+}
+
+// ---------- Lern-Werkstatt ----------
+
+export function toggleTried(id) {
+  if (store.learn.tried[id]) {
+    delete store.learn.tried[id];
+    store.stats.xp = Math.max(0, store.stats.xp - 20);
+  } else {
+    store.learn.tried[id] = Date.now();
+    store.stats.xp += 20;
+    touchStreak();
+  }
+  save();
+  return !!store.learn.tried[id];
+}
+
+export function solveCase(id) {
+  if (store.learn.cases[id]) return false;
+  store.learn.cases[id] = Date.now();
+  store.stats.xp += 15;
+  touchStreak();
+  save();
+  return true;
 }
 
 // ---------- Listen ----------
