@@ -11,7 +11,9 @@
 // Alle Aufgaben können "why" (Erklärung) und "fig" (SVG-Zeichnung) haben.
 // Im Text: **fett**, {3/4} = Bruch, {1 1/2} = gemischte Zahl.
 
-import { addXp } from './store.js';
+import { addXp, store, save } from './store.js';
+import { WritingPad } from './pad.js';
+import { recognize, RecognitionError } from './recognizer.js';
 import { talk } from './comic.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -41,6 +43,17 @@ export function parseNum(s) {
   if ((m = s.match(/^(-?)(\d+) (\d+)\/(\d+)$/))) return +m[4] ? (m[1] ? -1 : 1) * (+m[2] + +m[3] / +m[4]) : null;
   if ((m = s.match(/^(-?)(\d+)\/(\d+)$/))) return +m[3] ? (m[1] ? -1 : 1) * (+m[2] / +m[3]) : null;
   if (/^-?\d+(,\d+)?$/.test(s)) return Number(s.replace(',', '.'));
+  return null;
+}
+
+// Erkannte Handschrift -> Zahl. Typische Verwechsler (O statt 0, l statt 1 …) werden korrigiert.
+// Nimmt den ersten Kandidaten, der zum erwarteten Muster passt.
+export function readNumber(candidates, pattern) {
+  for (const c of candidates || []) {
+    const t = String(c).replace(/\s+/g, '').replace(/[Oo]/g, '0').replace(/[lI|]/g, '1').replace(/[−–—_]/g, '-')
+      .replace(/[.·']/g, ',').replace(/[:÷]/g, '/').replace(/[Ss]/g, '5').replace(/[Bb]/g, '8').replace(/[gq]/g, '9').replace(/[Zz]/g, '2');
+    if (pattern.test(t)) return t;
+  }
   return null;
 }
 
@@ -87,49 +100,146 @@ const TYPES = {
   },
 
   num(q, el, done, ctl) {
+    const isFrac = /\//.test(q.c);
+    let mode = store.settings.engine === 'keyboard' ? 'keys' : (store.settings.mathInput || 'pen');
     let val = '';
     let warned = false;
-    const isFrac = /\//.test(q.c);
-    const keys = ['7', '8', '9', '⌫', '4', '5', '6', '/', '1', '2', '3', ',', '-', '0', ' ', 'C'];
-    const label = { '/': '<small>Bruch</small> ⁄', ' ': '<small>Leer</small> ␣', '-': '−', C: '🗑️' };
-    el.innerHTML = `
-      <div class="numrow"><div class="numfield" id="nf"></div>${q.unit ? `<span class="numunit">${esc(q.unit)}</span>` : ''}</div>
-      <div class="keypad">${keys.map((k) => `<button type="button" class="key ${/\d/.test(k) ? '' : 'fn'}" data-k="${k}">${label[k] || k}</button>`).join('')}</div>
-      ${isFrac ? '<p class="muted small center">Bruch: <b>3 ⁄ 4</b> · gemischte Zahl: <b>1 ␣ 1 ⁄ 2</b></p>' : ''}`;
-    const nf = el.querySelector('#nf');
-    const draw = () => {
-      nf.innerHTML = val ? (/^-?(\d+ )?\d+\/\d+$/.test(val) ? showNum(val) : esc(val.replace(/-/g, '−').replace(/ /g, ' '))) : '<span class="ph">?</span>';
-      ctl.ready(!!val.trim());
-    };
-    const press = (k) => {
-      if (k === '⌫') val = val.slice(0, -1);
-      else if (k === 'C') val = '';
-      else if (val.length < 12) val += k;
-      draw();
-    };
-    el.querySelector('.keypad').addEventListener('click', (e) => {
-      const b = e.target.closest('.key');
-      if (b && !b.disabled) press(b.dataset.k);
-    });
-    ctl.onKey((e) => {
-      if (/^[0-9]$/.test(e.key) || e.key === '/' || e.key === ' ' || e.key === '-') { e.preventDefault(); press(e.key); }
-      else if (e.key === ',' || e.key === '.') press(',');
-      else if (e.key === 'Backspace') { e.preventDefault(); press('⌫'); }
-    });
-    ctl.check(() => {
-      const v = parseNum(val);
-      if (v === null) return ctl.nudge('Das ist noch keine fertige Zahl. Schau nochmal hin! 🔎');
-      const same = Math.abs(v - parseNum(q.c)) < 1e-9;
-      const formOk = !q.exact || normNum(val) === normNum(q.c);
+    let busy = false;
+    let pads = [];
+    let lastPad = null;
+    const unit = q.unit ? `<span class="numunit">${esc(q.unit)}</span>` : '';
+    const pretty = (v) => (/^-?(\d+ )?\d+\/\d+$/.test(v) ? showNum(v) : esc(v.replace(/-/g, '−').replace(/ /g, ' ')));
+    const dropPads = () => { pads.forEach((p) => p.pad.destroy()); pads = []; lastPad = null; };
+    ctl.onCleanup(dropPads);
+
+    // Wert prüfen – egal ob getippt oder geschrieben
+    function grade(v, viaPen) {
+      const num = parseNum(v);
+      if (num === null) return ctl.nudge(viaPen ? 'Das konnte ich nicht als Zahl lesen. Schreib es nochmal schön deutlich! ✏️' : 'Das ist noch keine fertige Zahl. Schau nochmal hin! 🔎');
+      const same = Math.abs(num - parseNum(q.c)) < 1e-9;
+      const formOk = !q.exact || normNum(v) === normNum(q.c);
       if (same && !formOk && !warned) {
         warned = true;
         return ctl.nudge(q.formHint || 'Der Wert stimmt schon! ✂️ Aber kürze noch vollständig.');
       }
-      el.querySelectorAll('.key').forEach((b) => { b.disabled = true; });
-      nf.classList.add(same && formOk ? 'right' : 'wrong');
-      done(same && formOk, `Richtig ist: <b class="big-ans">${showNum(q.c)}${q.unit ? ` ${esc(q.unit)}` : ''}</b>`);
+      const ok = same && formOk;
+      el.querySelectorAll('.key, .mtool, .modebtn').forEach((b) => { b.disabled = true; });
+      pads.forEach((p) => { p.pad.disabled = true; });
+      el.querySelector('#nf, .penbox')?.classList.add(ok ? 'right' : 'wrong');
+      return done(ok, `${viaPen ? `Ich habe gelesen: <b>${pretty(v)}</b><br>` : ''}Richtig ist: <b class="big-ans">${showNum(q.c)}${q.unit ? ` ${esc(q.unit)}` : ''}</b>`, { redo: viaPen });
+    }
+
+    const modeBar = () => (store.settings.engine === 'keyboard' ? '' : `
+      <div class="modebar">
+        <button type="button" class="modebtn ${mode === 'pen' ? 'on' : ''}" data-mode="pen">✏️ Schreiben</button>
+        <button type="button" class="modebtn ${mode === 'keys' ? 'on' : ''}" data-mode="keys">⌨️ Tippen</button>
+      </div>`);
+
+    // ----- Tippen -----
+    function renderKeys() {
+      const keys = ['7', '8', '9', '⌫', '4', '5', '6', '/', '1', '2', '3', ',', '-', '0', ' ', 'C'];
+      const label = { '/': '<small>Bruch</small> ⁄', ' ': '<small>Leer</small> ␣', '-': '−', C: '🗑️' };
+      el.innerHTML = `${modeBar()}
+        <div class="numrow"><div class="numfield" id="nf"></div>${unit}</div>
+        <div class="keypad">${keys.map((k) => `<button type="button" class="key ${/\d/.test(k) ? '' : 'fn'}" data-k="${k}">${label[k] || k}</button>`).join('')}</div>
+        ${isFrac ? '<p class="muted small center">Bruch: <b>3 ⁄ 4</b> · gemischte Zahl: <b>1 ␣ 1 ⁄ 2</b></p>' : ''}`;
+      const draw = () => {
+        el.querySelector('#nf').innerHTML = val ? pretty(val) : '<span class="ph">?</span>';
+        ctl.ready(!!val.trim());
+      };
+      const press = (k) => {
+        if (k === '⌫') val = val.slice(0, -1);
+        else if (k === 'C') val = '';
+        else if (val.length < 12) val += k;
+        draw();
+      };
+      el.querySelector('.keypad').addEventListener('click', (e) => {
+        const b = e.target.closest('.key');
+        if (b && !b.disabled) press(b.dataset.k);
+      });
+      ctl.onKey((e) => {
+        if (/^[0-9]$/.test(e.key) || e.key === '/' || e.key === ' ' || e.key === '-') { e.preventDefault(); press(e.key); }
+        else if (e.key === ',' || e.key === '.') press(',');
+        else if (e.key === 'Backspace') { e.preventDefault(); press('⌫'); }
+      });
+      ctl.check(() => grade(val, false));
+      draw();
+    }
+
+    // ----- Mit dem Stift schreiben -----
+    // Ganze Zahlen und Kommazahlen: ein Feld. Brüche: eigene Felder für Ganze, Zähler und Nenner.
+    function renderPen() {
+      const box = (name, cls, hint) => `<div class="padcell ${cls}"><canvas class="mpad" data-pad="${name}" aria-label="${hint}"></canvas>${cls === 'whole' ? '<small>Ganze<br>(nur wenn nötig)</small>' : ''}</div>`;
+      el.innerHTML = `${modeBar()}
+        <div class="penbox ${isFrac ? 'isfrac' : ''}">
+          ${isFrac
+            ? `${box('whole', 'whole', 'Ganze')}<div class="padfrac">${box('num', 'part', 'Zähler')}<div class="padbar"></div>${box('den', 'part', 'Nenner')}</div>`
+            : box('one', 'one', 'Ergebnis')}
+          ${unit}
+        </div>
+        <div class="mtools">
+          <button type="button" class="tool mtool" data-tool="undo" aria-label="Rückgängig">↶</button>
+          <button type="button" class="tool mtool" data-tool="clear" aria-label="Löschen">🗑️</button>
+          <span class="muted small">${isFrac ? 'Schreib den Zähler oben und den Nenner unten.' : 'Schreib dein Ergebnis mit dem Stift oder Finger.'}</span>
+        </div>`;
+      const update = () => ctl.ready(!busy && pads.some((p) => !p.pad.isEmpty()));
+      pads = [...el.querySelectorAll('.mpad')].map((canvas) => {
+        const p = { name: canvas.dataset.pad, pad: null };
+        p.pad = new WritingPad(canvas, { penOnly: store.settings.penOnly, onChange: () => { if (!p.pad.isEmpty()) lastPad = p; update(); } });
+        return p;
+      });
+      el.querySelector('.mtools').addEventListener('click', (e) => {
+        const b = e.target.closest('.mtool');
+        if (!b || b.disabled) return;
+        if (b.dataset.tool === 'clear') pads.forEach((p) => p.pad.clear());
+        else (lastPad && !lastPad.pad.isEmpty() ? lastPad : pads.find((p) => !p.pad.isEmpty()))?.pad.undo();
+      });
+      ctl.onKey(() => {});
+      ctl.check(async () => {
+        if (busy) return;
+        busy = true;
+        ctl.ready(false, 'Lese …');
+        const read = {};
+        try {
+          for (const p of pads) {
+            if (p.pad.isEmpty()) continue;
+            const cands = await recognize(p.pad.strokes, {
+              engine: store.settings.engine, lang: 'de', width: p.pad.width, height: p.pad.height, pointerType: p.pad.lastPointerType,
+            });
+            read[p.name] = readNumber(cands, p.name === 'one' ? /^-?\d+(,\d+)?$|^-?\d+\/\d+$/ : /^\d+$/) ?? '?';
+          }
+        } catch (e) {
+          busy = false;
+          ctl.nudge(e instanceof RecognitionError ? e.message : `Fehler bei der Erkennung: ${e.message}`);
+          setMode('keys', false);
+          return;
+        }
+        busy = false;
+        if (!el.isConnected) return; // Aufgabe inzwischen verlassen
+        update();
+        let v;
+        if (!isFrac) v = read.one;
+        else if (read.num && read.den) v = `${read.whole ? `${read.whole} ` : ''}${read.num}/${read.den}`;
+        else if (read.whole && !read.num && !read.den) v = read.whole;
+        else if (read.num && !read.den && !read.whole) v = read.num; // nur eine ganze Zahl ins obere Feld geschrieben
+        else return ctl.nudge('Zu einem Bruch gehören Zähler (oben) und Nenner (unten). ✏️');
+        grade(v, true);
+      });
+      update();
+    }
+
+    function setMode(m, remember = true) {
+      mode = m;
+      if (remember) { store.settings.mathInput = m; save(); }
+      dropPads();
+      val = '';
+      (mode === 'pen' ? renderPen : renderKeys)();
+    }
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('.modebtn');
+      if (b && !b.disabled && b.dataset.mode !== mode) setMode(b.dataset.mode);
     });
-    draw();
+    (mode === 'pen' ? renderPen : renderKeys)();
   },
 
   order(q, el, done, ctl) {
@@ -255,7 +365,7 @@ const TYPES = {
 const TYPE_LABEL = {
   mc: 'Tippe die richtige Antwort an',
   tf: 'Was meinst du?',
-  num: 'Tippe das Ergebnis ein',
+  num: 'Wie lautet das Ergebnis?',
   order: 'Tippe in der richtigen Reihenfolge an',
   sort: 'Ordne jedes Kärtchen zu',
   match: 'Finde die Paare: erst links, dann rechts antippen',
@@ -311,12 +421,16 @@ export function runQuiz(app, opts) {
   };
   document.addEventListener('keydown', onKey);
   const cleanup = () => {
+    S.typeCleanup?.();
+    S.typeCleanup = null;
     clearTimeout(S.timer);
     document.removeEventListener('keydown', onKey);
   };
 
   function show() {
     const { q, retry } = S.queue[S.pos];
+    S.typeCleanup?.();
+    S.typeCleanup = null;
     S.answered = false;
     S.keyHandler = null;
     S.checkHandler = null;
@@ -340,21 +454,23 @@ export function runQuiz(app, opts) {
         $('qact').innerHTML = '<button class="btn primary big" id="qcheck" disabled>Prüfen ✓</button>';
         $('qcheck').addEventListener('click', () => { if (!S.answered) fn(); });
       },
-      ready(on) { const b = $('qcheck'); if (b) b.disabled = !on; },
+      ready(on, label) { const b = $('qcheck'); if (b) { b.disabled = !on; b.textContent = label || 'Prüfen ✓'; } },
+      onCleanup(fn) { S.typeCleanup = fn; },
       nudge(msg) {
         $('qfb').innerHTML = `<div class="msg warn">${esc(msg)}</div>`;
         body.classList.remove('shake'); void body.offsetWidth; body.classList.add('shake');
       },
       onKey(fn) { S.keyHandler = fn; },
     };
-    TYPES[q.t](q, body, (ok, solution) => answered(ok, solution), ctl);
+    TYPES[q.t](q, body, (ok, solution, extra) => answered(ok, solution, extra), ctl);
   }
 
-  function answered(ok, solution) {
+  function answered(ok, solution, extra = {}) {
     if (S.answered) return;
     S.answered = true;
     const item = S.queue[S.pos];
     const { q } = item;
+    const comboBefore = S.combo;
     let gained = 0;
     if (!item.retry) {
       S.first.set(item.n, ok);
@@ -376,6 +492,18 @@ export function runQuiz(app, opts) {
       ${q.why ? `<div class="msg info">💡 ${fmt(q.why)}</div>` : ''}`;
     $('qact').innerHTML = `<button class="btn primary big" id="qnext">${S.pos + 1 >= S.queue.length ? 'Zur Auswertung 🏁' : 'Weiter ➜'}</button>`;
     $('qnext').addEventListener('click', next);
+    // Handschrift falsch gelesen? Dann darf die Aufgabe ohne Wertung nochmal geschrieben werden.
+    if (!ok && extra.redo) {
+      $('qact').insertAdjacentHTML('beforeend', '<button class="link" id="qredo">Ich hatte es richtig – die Schrift wurde falsch gelesen. Nochmal schreiben</button>');
+      $('qredo').addEventListener('click', () => {
+        if (!item.retry) {
+          S.first.delete(item.n);
+          S.queue.pop();
+          S.combo = comboBefore;
+        }
+        show();
+      });
+    }
     if (ok && !q.why) S.timer = setTimeout(next, 1100);
     else $('qnext').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }

@@ -14,7 +14,8 @@ die auf der Startseite als große Kacheln zu sehen sind:
 
 - Jede **Station** hat einen aufklappbaren **Spickzettel** (Bio: Forscher-Wissen), mehrere **Level** mit je 8 Aufgaben
   und eine „Wusstest du?“-Info. In Bio gibt es zusätzlich einen **Forscher-Auftrag** zum Ausprobieren (Kresse-Labor, Flaschentaucher …).
-- **Sieben Aufgabentypen** sorgen für Abwechslung: Auswahl, Ja/Nein, Zahl eintippen (eigene Zahlentastatur mit Bruchstrich),
+- **Sieben Aufgabentypen** sorgen für Abwechslung: Auswahl, Ja/Nein, Zahl **mit dem Stift schreiben** (Brüche mit eigenen Feldern für
+  Zähler und Nenner; umschaltbar auf eine Zahlentastatur),
   Reihenfolge, Zuordnen, Paare finden und Buchstabensalat – dazu Zeichnungen (Bruch-Kreise, Winkel, Uhr, Zahlenstrahl, Figuren, Diagramme).
 - Die **Mathe-Aufgaben werden per Zufall erzeugt** – jede Runde ist anders. Nach jeder Antwort gibt es eine kurze Erklärung;
   falsch gelöste Aufgaben kommen am Ende der Runde noch einmal.

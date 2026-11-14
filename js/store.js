@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   penOnly: 'auto',         // 'auto' | 'on' | 'off'
   speak: true,
   sessionSize: 10,
+  mathInput: 'pen',        // Mathe-Ergebnisse: 'pen' = mit dem Stift schreiben | 'keys' = tippen
 };
 
 // Lern-Werkstatt: ausprobierte Methoden (Sticker) und gelöste Detektiv-Fälle

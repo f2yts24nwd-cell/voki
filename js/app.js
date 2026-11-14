@@ -17,7 +17,7 @@ let lastMistakes = [];
 let updateReady = false;
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 6;
+const APP_VERSION = 7;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -828,6 +828,11 @@ function renderSettings() {
         ${opt('tolerance', 3, '<b>Großzügig</b> – auch wenn das Wort nur unter den ersten 3 Vorschlägen der Erkennung ist (bei unordentlicher Schrift)', s.tolerance)}
         <label class="choice"><input type="checkbox" name="caseSensitive" ${s.caseSensitive ? 'checked' : ''}> Groß- und Kleinschreibung beachten</label>
       </fieldset>
+      <fieldset><legend>Mathe: Ergebnisse eingeben</legend>
+        ${opt('mathInput', 'pen', '✏️ Mit dem Stift schreiben (Brüche: Zähler oben, Nenner unten)', s.mathInput)}
+        ${opt('mathInput', 'keys', '⌨️ Mit der Zahlentastatur tippen', s.mathInput)}
+        <p class="muted small">Du kannst auch bei jeder Aufgabe direkt umschalten.</p>
+      </fieldset>
       <fieldset><legend>Stift</legend>
         ${opt('penOnly', 'auto', 'Automatisch: Sobald ein Stift benutzt wird, werden Finger/Handballen ignoriert', s.penOnly)}
         ${opt('penOnly', 'on', 'Nur Stift', s.penOnly)}
@@ -867,6 +872,7 @@ function renderSettings() {
       tolerance: Number(fd.get('tolerance')),
       caseSensitive: fd.get('caseSensitive') === 'on',
       penOnly: fd.get('penOnly'),
+      mathInput: fd.get('mathInput'),
       engine: fd.get('engine'),
       speak: fd.get('speak') === 'on',
       sessionSize: Number(fd.get('sessionSize')),
