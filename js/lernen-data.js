@@ -224,7 +224,7 @@ export const METHODS = [
     ],
     warum: 'Jedes Mal, wenn du etwas aus dem Kopf holst, wird der Weg dorthin breiter – wie ein Trampelpfad im Wald. Das nennt man [[Wiederholen mit Abstand]].',
     challenge: '**7-Tage-Challenge:** Frag dich eine Woche lang jeden Tag 5 Minuten ab. Mach jeden Tag ein Kreuz in den Kalender!',
-    link: { href: '#/', label: '🔁 Voki-Karteikasten öffnen' },
+    link: { href: '#/vokabeln', label: '🔁 Voki-Karteikasten öffnen' },
     comic: [
       { bg: 'night', cast: [['sheep', 'center', 'tired']], props: [['cards', 60, 136, 1.3], ['sweat', 160, 80], ['zzz', 168, 60]], say: [['center', 'Ich lerne alle 50 Karten am Sonntag vor dem Test …']] },
       { bg: 'room', cast: [['alpaca', 'left', 'happy']], props: [['calendar', 180, 110, 1.4]], say: [['left', 'Besser: **jeden Tag ein bisschen**. Dein Gehirn liebt kleine Häppchen.']] },
@@ -400,7 +400,7 @@ export const METHODS = [
     ],
     warum: 'Das ist die stärkste Methode überhaupt! Du übst genau das, was du im Test tun musst: Wissen aus dem Kopf holen. Und vor dem echten Test bist du viel ruhiger, weil du weißt, was kommt.',
     challenge: 'Mach vor deiner nächsten Klassenarbeit mindestens **einen** Probetest – zu Hause, mit Uhr, ohne Hilfe.',
-    link: { href: '#/', label: '📝 Zum Vokabel-Test in Voki' },
+    link: { href: '#/vokabeln', label: '📝 Zum Vokabel-Test in Voki' },
     comic: [
       { bg: 'room', cast: [['elara', 'left', 'neutral', 'hold']], props: [['test', 50, 110], ['clock', 190, 60, 1.2]], say: [['left', 'Probetest! 20 Minuten, ohne Hilfe – wie in echt.']] },
       { bg: 'room', cast: [['elara', 'left', 'surprised', 'think'], ['alpaca', 'right', 'happy']], props: [['test', 120, 136]], say: [['left', 'Oh, Aufgabe 3 konnte ich nicht.'], ['right', 'Super, dass du das **jetzt** merkst – und nicht erst in der Klassenarbeit!']] },
@@ -431,7 +431,7 @@ export const PHASES = [
     ],
     warum: 'Ein neues Wort muss erst einmal „ankommen“. Je mehr Sinne du benutzt – hören, sehen, malen, anfassen –, desto mehr Haken hat das Wort in deinem Gehirn.',
     challenge: 'Nimm dir deine nächste Vokabelliste und mach **Kopfwörter**: Wie viele Wörter sind schon im Kopf?',
-    link: { href: '#/', label: '✍️ In Voki: Neue Wörter einprägen' },
+    link: { href: '#/vokabeln', label: '✍️ In Voki: Neue Wörter einprägen' },
   },
   {
     id: 'etappe-2', island: 'vokabeln', step: 2, emoji: '⚙️',
@@ -450,7 +450,7 @@ export const PHASES = [
     ],
     warum: 'Jedes Abfragen macht den Weg zum Wort im Gehirn breiter. Viele kurze Übungen sind stärker als eine lange.',
     challenge: '**Post-it-Schatzsuche:** Verteile 10 Vokabel-Paare in der Wohnung. Wie schnell findest du alle Paare?',
-    link: { href: '#/', label: '🔁 In Voki: Lernen & Karteikasten' },
+    link: { href: '#/vokabeln', label: '🔁 In Voki: Lernen & Karteikasten' },
   },
   {
     id: 'etappe-3', island: 'vokabeln', step: 3, emoji: '📝',
@@ -467,7 +467,7 @@ export const PHASES = [
     ],
     warum: 'So übst du die Test-Situation in einer entspannten Umgebung. Und du siehst deinen Lernfortschritt schwarz auf weiß.',
     challenge: 'Schreib heute einen Mini-Test mit 10 Wörtern. Wie viele hast du richtig – und wie viele schaffst du in 3 Tagen?',
-    link: { href: '#/', label: '📝 In Voki: Test starten' },
+    link: { href: '#/vokabeln', label: '📝 In Voki: Test starten' },
   },
   {
     id: 'etappe-4', island: 'vokabeln', step: 4, emoji: '🔁',
@@ -483,7 +483,7 @@ export const PHASES = [
     ],
     warum: 'Das Gehirn vergisst, was es lange nicht braucht. Wenn du ein Wort kurz vor dem Vergessen wiederholst, bleibt es danach noch länger hängen.',
     challenge: 'Leg in Voki eine eigene Liste „Meine schweren Wörter“ an und übe sie eine Woche lang jeden Tag.',
-    link: { href: '#/', label: '🔁 In Voki: Wiederholen' },
+    link: { href: '#/vokabeln', label: '🔁 In Voki: Wiederholen' },
   },
   {
     id: 'profi-tipps', island: 'vokabeln', step: 5, emoji: '💡',

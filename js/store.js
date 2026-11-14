@@ -24,6 +24,11 @@ function freshLearn(l = {}) {
   return { tried: { ...(l.tried || {}) }, cases: { ...(l.cases || {}) } };
 }
 
+// Mathe & Bio: Sterne je Level, erledigte Forscher-Aufträge, Tages-Challenge
+function freshQuiz(q = {}) {
+  return { stars: { ...(q.stars || {}) }, tasks: { ...(q.tasks || {}) }, daily: q.daily || '', played: q.played || 0 };
+}
+
 function load() {
   try {
     const data = JSON.parse(localStorage.getItem(KEY) || '{}');
@@ -33,9 +38,10 @@ function load() {
       custom: data.custom || [],
       stats: { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) },
       learn: freshLearn(data.learn),
+      quiz: freshQuiz(data.quiz),
     };
   } catch {
-    return { settings: { ...DEFAULT_SETTINGS }, progress: {}, custom: [], stats: { xp: 0, streak: 0, lastDay: '' }, learn: freshLearn() };
+    return { settings: { ...DEFAULT_SETTINGS }, progress: {}, custom: [], stats: { xp: 0, streak: 0, lastDay: '' }, learn: freshLearn(), quiz: freshQuiz() };
   }
 }
 
@@ -61,6 +67,7 @@ export function importData(json) {
   store.custom = data.custom || [];
   store.stats = { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) };
   store.learn = freshLearn(data.learn);
+  store.quiz = freshQuiz(data.quiz);
   save();
 }
 
@@ -68,7 +75,54 @@ export function resetProgress() {
   store.progress = {};
   store.stats = { xp: 0, streak: 0, lastDay: '' };
   store.learn = freshLearn();
+  store.quiz = freshQuiz();
   save();
+}
+
+// ---------- Mathe & Bio (Quiz) ----------
+
+export function addXp(n) {
+  store.stats.xp += n;
+  touchStreak();
+  save();
+}
+
+export const quizStars = (key) => store.quiz.stars[key] || 0;
+
+// Merkt sich die beste Sternzahl eines Levels; gibt true zurück, wenn es ein neuer Rekord ist
+export function recordQuiz(key, stars) {
+  store.quiz.played++;
+  const better = stars > quizStars(key);
+  if (better) store.quiz.stars[key] = stars;
+  touchStreak();
+  save();
+  return better;
+}
+
+export const taskDone = (id) => !!store.quiz.tasks[id];
+
+export function toggleTask(id) {
+  if (store.quiz.tasks[id]) {
+    delete store.quiz.tasks[id];
+    store.stats.xp = Math.max(0, store.stats.xp - 20);
+  } else {
+    store.quiz.tasks[id] = Date.now();
+    store.stats.xp += 20;
+    touchStreak();
+  }
+  save();
+  return !!store.quiz.tasks[id];
+}
+
+export const dailyDone = () => store.quiz.daily === dayKey();
+
+export function markDaily() {
+  if (dailyDone()) return false;
+  store.quiz.daily = dayKey();
+  store.stats.xp += 30;
+  touchStreak();
+  save();
+  return true;
 }
 
 // ---------- Lern-Werkstatt ----------

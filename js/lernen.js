@@ -50,6 +50,12 @@ function allStickers() {
   ];
 }
 
+// Für die Startseite: wie viele Sticker sind gesammelt?
+export function learnStats() {
+  const s = allStickers();
+  return { got: s.filter((x) => x.got).length, total: s.length };
+}
+
 // ---------- Begriffs-Fenster ----------
 
 function glossaryBody(g) {
@@ -128,10 +134,10 @@ function renderOverview(app, ctx) {
   const got = stickers.filter((s) => s.got).length;
   app.innerHTML = `
     <header class="top">
-      <h1>✏️ Voki</h1>
+      <a class="icon-btn" href="#/" aria-label="Zur Startseite">←</a>
+      <h1>🧠 Lern-Werkstatt</h1>
       <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen">⚙️</a>
     </header>
-    ${ctx.tabs('learn')}
     ${comicHtml([{
       bg: 'outside',
       cast: [['elara', 'center', 'excited', 'wave'], ['sheep', 'left', 'happy'], ['alpaca', 'right', 'happy']],
@@ -172,7 +178,6 @@ function renderOverview(app, ctx) {
     </div>
     <p class="credit">Die Ideen stammen von den Arbeitsblättern „17 Lernmethoden“, „Vokabeln lernen“, „Aufgabenstellungen verstehen“ und „17 Zaubersätze“ von Caroline von St. Ange (learn learning with Caroline) – hier in eigenen Worten und mit eigenen Bildern umgesetzt.</p>
   `;
-  ctx.bindTabs();
 }
 
 // ---------- Inseln ----------

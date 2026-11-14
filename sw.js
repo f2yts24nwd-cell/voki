@@ -2,7 +2,7 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v5';
+const VERSION = 'voki-v6';
 const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
@@ -20,6 +20,11 @@ const FILES = [
   'js/comic.js',
   'js/lernen.js',
   'js/lernen-data.js',
+  'js/quiz.js',
+  'js/figures.js',
+  'js/fach.js',
+  'js/mathe-data.js',
+  'js/bio-data.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',

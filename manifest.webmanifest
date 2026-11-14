@@ -1,7 +1,7 @@
 {
-  "name": "Voki – Vokabeln mit dem Stift",
+  "name": "Voki – Lernen mit Köpfchen",
   "short_name": "Voki",
-  "description": "Englisch- und Französisch-Vokabeln und Grammatik mit dem Stift schreiben und automatisch prüfen lassen.",
+  "description": "Lern-App für Klasse 6: Englisch- und Französisch-Vokabeln mit dem Stift, Mathe- und Bio-Quiz und eine Lern-Werkstatt.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
