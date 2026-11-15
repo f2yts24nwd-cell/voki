@@ -1,8 +1,18 @@
-// Biologie Klasse 6 (Gymnasium, Baden-Württemberg).
-// In BW gehört Biologie in Klasse 5/6 zum Fach BNT (Biologie, Naturphänomene und Technik).
-// Die Themen orientieren sich am Bildungsplan 2016: Kennzeichen der Lebewesen, Wirbeltiere,
-// Blütenpflanzen, Angepasstheit an Lebensraum und Jahreszeiten, wirbellose Tiere.
-// Eigene Texte – keine Kopie eines Schulbuchs.
+// Biologie Klasse 5/6 (Gymnasium, Baden-Württemberg) im Fach BNT.
+// Stationen und Reihenfolge passen zu „Natura 5/6 – Biologie, Naturphänomene und Technik“
+// (Klett, Ausgabe Baden-Württemberg) und zu den Heftaufschrieben und Arbeitsblättern aus dem Unterricht:
+// Kennzeichen der Lebewesen, Säugetiere (Kap. 1), Vögel (Kap. 2), Blütenpflanzen und Lebensraum Wiese (Kap. 6),
+// Bäume bestimmen, Samen und Früchte, Wirbellose Tiere (Kap. 7).
+// Alle Texte und Fragen sind selbst formuliert – nichts ist aus dem Buch kopiert.
+
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = (arr) => arr[rnd(0, arr.length - 1)];
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+};
+const others = (all, x, n = 3) => shuffle(all.filter((y) => y !== x)).slice(0, n);
 
 const mc = (q, a, why) => ({ t: 'mc', q, a, c: 0, why });
 const tf = (q, c, why) => ({ t: 'tf', q, c, why });
@@ -11,17 +21,77 @@ const match = (q, pairs, why) => ({ t: 'match', q, pairs, why });
 const order = (q, items, why) => ({ t: 'order', q, items, why });
 const word = (q, c, why) => ({ t: 'scramble', q, c, why });
 
+// ---------- Bäume: Blätter und Früchte ----------
+// [Name, Blatt (wie im Bestimmungsschlüssel), Frucht, Laub-/Nadelbaum]
+const TREES = [
+  ['Rosskastanie', 'zusammengesetzt, **gefingert** – 5 bis 7 Blättchen wie eine Hand', 'stachelige grüne Kapsel mit glänzend braunem Samen', 'Laubbaum'],
+  ['Eberesche', 'zusammengesetzt, **gefiedert**, Blättchen **fein gesägt**', 'leuchtend rote Beeren in Büscheln (Vogelbeeren)', 'Laubbaum'],
+  ['Esche', 'zusammengesetzt, **gefiedert**, Blättchen **unregelmäßig gesägt**', 'längliche Flügelfrüchte, die in Büscheln hängen', 'Laubbaum'],
+  ['Rotbuche', 'einzeln, **ganzrandig/wellig**, Blattnerven laufen **gerade zum Rand**', 'dreikantige Bucheckern in einer stacheligen Hülle', 'Laubbaum'],
+  ['Eiche', 'einzeln, **gebuchtet**, Rand glatt', 'Eicheln, die in einem kleinen Becher sitzen', 'Laubbaum'],
+  ['Weißdorn', 'einzeln, **gebuchtet**, Rand gezähnt', 'kleine dunkelrote Beeren', 'Laubbaum'],
+  ['Spitzahorn', 'einzeln, **gelappt**, Lappen zipfelig zugespitzt, Rand sonst glatt', 'zwei Flügelfrüchte, die wie Propeller zusammenhängen', 'Laubbaum'],
+  ['Bergahorn', 'einzeln, **gelappt**, Lappen spitz und **Rand gesägt**', 'zwei Flügelfrüchte im spitzen Winkel', 'Laubbaum'],
+  ['Linde', 'einzeln, **herzförmig**, gesägt', 'kleine runde Nüsschen an einem langen Flügelblatt', 'Laubbaum'],
+  ['Birke', 'einzeln, **dreieckig**, gesägt, Stiel rund', 'winzige Flügelnüsschen in walzenförmigen Kätzchen', 'Laubbaum'],
+  ['Hainbuche', 'einzeln, länglich oval, Rand **doppelt gesägt**', 'Nüsschen an einem dreilappigen Flügel', 'Laubbaum'],
+  ['Platane', 'einzeln, groß und gelappt wie beim Ahorn, Rinde blättert in Flecken ab', 'stachelige Kugeln an langen Stielen', 'Laubbaum'],
+  ['Fichte', 'spitze, stechende Nadeln **rund um den Zweig**', 'lange Zapfen, die nach **unten hängen** und ganz abfallen', 'Nadelbaum'],
+  ['Tanne', 'flache, weiche Nadeln mit **zwei weißen Streifen** auf der Unterseite', 'Zapfen, die **aufrecht** stehen und am Baum zerfallen', 'Nadelbaum'],
+  ['Kiefer', 'lange Nadeln, immer **zu zweit** zusammen', 'kegelförmige Zapfen mit dicken, holzigen Schuppen', 'Nadelbaum'],
+  ['Lärche', 'weiche Nadeln in **Büscheln** – im Herbst werden sie gelb und fallen ab', 'kleine, eiförmige Zapfen, die aufrecht am Zweig sitzen', 'Nadelbaum'],
+];
+const treeNames = TREES.map((t) => t[0]);
+const gLeaf = () => {
+  const [n, leaf] = pick(TREES);
+  return { t: 'mc', q: `🍃 Welcher Baum hat diese ${leaf.includes('Nadeln') ? 'Nadeln' : 'Blätter'}?\n${leaf}`, a: [n, ...others(treeNames, n)], c: 0, why: `${n}: ${leaf.replace(/\*\*/g, '')}.` };
+};
+const gFruit = () => {
+  const [n, , fruit] = pick(TREES);
+  return { t: 'mc', q: `🌰 Welche Frucht gehört zu diesem Baum: **${n}**?`, a: [fruit, ...others(TREES.map((t) => t[2]), fruit)], c: 0, why: `Frucht der ${n}: ${fruit}.` };
+};
+const gFruitRev = () => {
+  const [n, , fruit] = pick(TREES);
+  return { t: 'mc', q: `🌰 Von welchem Baum stammt diese Frucht?\n${fruit}`, a: [n, ...others(treeNames, n)], c: 0, why: `Das ist die Frucht der ${n}.` };
+};
+const gLaubNadel = () => sort('Laubbaum oder Nadelbaum?', ['Laubbaum', 'Nadelbaum'], shuffle(TREES).slice(0, 6).map(([n, , , k]) => [n, k === 'Laubbaum' ? 0 : 1]), 'Die Lärche ist ein Sonderfall: ein Nadelbaum, der im Herbst seine Nadeln abwirft.');
+
+// ---------- Samen und Früchte: Verbreitung ----------
+// [Pflanze, Verbreitung, Fruchtart]
+const SEEDS = [
+  ['Ahorn', 'Wind', 'Schraubenflieger'], ['Löwenzahn', 'Wind', 'Schirmflieger'], ['Linde', 'Wind', 'Schraubenflieger'],
+  ['Hainbuche', 'Wind', 'Schraubenflieger'], ['Klatschmohn', 'Wind', 'Streufrucht (Körnchenflieger)'], ['Schneeball', 'Tiere', 'Lockfrucht'],
+  ['Klette', 'Tiere', 'Klettfrucht'], ['Haselnuss', 'Tiere', 'Trockenfrucht (wird versteckt)'], ['Eberesche', 'Tiere', 'Lockfrucht'],
+  ['Veilchen', 'Tiere', 'Ameisenfrucht'], ['Storchschnabel', 'Selbst', 'Schleuderfrucht'], ['Springkraut', 'Selbst', 'Schleuderfrucht'],
+  ['Seerose', 'Wasser', 'Schwimmsamen'], ['Kokospalme', 'Wasser', 'Schwimmfrucht'],
+];
+const VERB = ['Wind', 'Tiere', 'Wasser', 'Selbst'];
+const gSeedSort = () => {
+  const pool = shuffle(SEEDS);
+  const picked = [];
+  for (const v of VERB) { const s = pool.find((x) => x[1] === v); if (s) picked.push(s); }
+  for (const s of pool) if (picked.length < 6 && !picked.includes(s)) picked.push(s);
+  return sort('Wie wird die Frucht verbreitet?', ['Wind', 'Tiere', 'Wasser', 'selbst'], shuffle(picked).map(([n, v]) => [n, VERB.indexOf(v)]), '**Wind:** leichte Flugfrüchte. **Tiere:** Lock-, Klett- und Ameisenfrüchte, versteckte Nüsse. **Wasser:** Schwimmsamen. **Selbst:** Schleuderfrüchte springen auf.');
+};
+const FTYPES = ['Schraubenflieger', 'Schirmflieger', 'Lockfrucht', 'Klettfrucht', 'Schleuderfrucht', 'Schwimmsamen', 'Ameisenfrucht', 'Streufrucht (Körnchenflieger)'];
+const gSeedType = () => {
+  const [n, , typ] = pick(SEEDS.filter((s) => FTYPES.includes(s[2])));
+  return { t: 'mc', q: `Welche Art von Frucht bildet **${n}**?`, a: [typ, ...others(FTYPES, typ)], c: 0, why: `${n}: ${typ}.` };
+};
+
+// ---------- Stationen ----------
+
 export const BIO = {
   id: 'bio',
   name: 'Biologie',
   emoji: '🧬',
   who: 'elara',
   motto: 'Forscher-Camp',
-  intro: 'Willkommen im **Forscher-Camp**! In jeder Station gibt es Forscher-Wissen, zwei Quiz-Level und einen **Forscher-Auftrag** für draußen oder zu Hause.',
+  credit: 'Stationen und Reihenfolge passen zu Natura 5/6 – Biologie, Naturphänomene und Technik (Klett, Baden-Württemberg) und zu den Arbeitsblättern aus dem Unterricht. Alle Texte und Fragen sind selbst formuliert.',
+  intro: 'Willkommen im **Forscher-Camp**! Die Stationen folgen deinem BNT-Buch **Natura 5/6**. Überall gibt es Forscher-Wissen, Quiz-Level und einen **Forscher-Auftrag** für draußen oder zu Hause.',
   topics: [
-    // ------------------------------------------------------------------
     {
-      id: 'leben', title: 'Kennzeichen des Lebens', emoji: '🌱', sub: 'Was lebt – und woran erkennt man das?',
+      id: 'leben', chapter: 'Start', title: 'Kennzeichen des Lebens', emoji: '🌱', sub: 'Was lebt – und woran erkennt man das?',
       sayWho: 'sheep', say: 'Mein Kuschel-Roboter bewegt sich und macht „Mäh“. Der lebt doch – oder?!',
       explain: [
         ['Die Kennzeichen des Lebens', 'Lebewesen erkennt man daran, dass sie **alle** diese Merkmale zeigen:\n**Bewegung** aus eigener Kraft\n**Reizbarkeit** – sie nehmen ihre Umwelt wahr und reagieren\n**Stoffwechsel** – Nahrung aufnehmen, umwandeln, Reste ausscheiden, atmen\n**Wachstum und Entwicklung**\n**Fortpflanzung**', 'Merkhilfe: **B**ären **r**ennen **s**elten **w**egen **F**röschen.'],
@@ -55,155 +125,117 @@ export const BIO = {
         ] },
       ],
     },
-    // ------------------------------------------------------------------
+
+  // ------------------------------------------------------------------
+  {
+    id: 'saeuger', chapter: '1', title: 'Säugetiere', emoji: '🐕', sub: 'Haustiere, Nutztiere, Säugetiere in ihrem Lebensraum',
+    sayWho: 'elara', say: 'Wusstest du, dass der Dackel vom Wolf abstammt und eine Kuh vier Mägen hat? Säugetiere sind echte Spezialisten!',
+    explain: [
+      ['Merkmale der Säugetiere', '**Wirbeltiere** mit Wirbelsäule · **Fell** aus Haaren · **gleichwarm** (Körpertemperatur bleibt gleich) · atmen mit **Lungen** · meist **lebend gebärend** · **säugen** ihre Jungen mit Milch.', 'Auch Wal, Fledermaus und Mensch sind Säugetiere.'],
+      ['Hund und Wolf (1.1)', 'Alle Hunde stammen vom **Wolf** ab – durch **Züchtung** entstanden über 300 Rassen. Wölfe leben im **Rudel** mit Rangordnung und sind **Hetzjäger** mit Ausdauer. Hunde verständigen sich mit Körpersprache: Schwanz, Ohren, Zähnezeigen. Sie sind **Zehengänger** und „Nasentiere“.', ''],
+      ['Die Katze (1.1)', '**Schleichjägerin:** schleicht lautlos auf weichen Ballen, lauert und springt. Krallen sind **einziehbar**. Große Augen, die im Dunkeln gut sehen; Tasthaare. Junge Katzen kommen **blind** zur Welt (Nesthocker).', ''],
+      ['Nutztiere (1.2)', '**Rind:** Pflanzenfresser und **Wiederkäuer** mit vier Mägen (Pansen, Netzmagen, Blättermagen, Labmagen). Es liefert Milch, Fleisch, Leder. Vorfahr: der Auerochse.\n**Hausschwein:** **Allesfresser**, Vorfahr Wildschwein.\n**Pferd:** **Zehenspitzengänger** (Huf), Fluchttier.', ''],
+      ['Gebisse im Vergleich', '**Fleischfresser** (Hund, Katze): Fangzähne und scharfe **Reißzähne**.\n**Pflanzenfresser** (Rind, Pferd): breite **Mahlzähne**.\n**Allesfresser** (Schwein, Mensch): von allem etwas.\n**Nagetiere** (Hase, Eichhörnchen): Nagezähne wachsen ständig nach.', ''],
+      ['Säugetiere in ihrem Lebensraum (1.3)', '**Maulwurf:** Grabhände, lebt unter Tage. **Fledermaus:** Flughaut, orientiert sich mit **Ultraschall**. **Seehund:** stromlinienförmig, Speckschicht. **Feldhase** (Nestflüchter, offenes Feld) und **Wildkaninchen** (Nesthocker, Bau).\nDer Körperbau passt zum Lebensraum – das biologische Prinzip **Struktur und Funktion**.', ''],
+    ],
+    facts: ['Eine Hundenase hat bis zu 300 Millionen Riechzellen – wir Menschen nur etwa 5 Millionen.', 'Eine Kuh kaut bis zu 30 000-mal am Tag.', 'Der Blauwal ist das größte Tier, das je gelebt hat – und er ist ein Säugetier.'],
+    task: ['Pfoten-Detektiv', 'Beobachte fünf Minuten lang einen Hund oder eine Katze. Wie setzt das Tier die Pfoten auf? Was machen Ohren und Schwanz? Zeichne einen Pfotenabdruck: Sieht man Krallen (Hund) oder nicht (Katze)?'],
+    levels: [
+      { title: 'Haustiere: Hund & Katze', emoji: '🐾', questions: [
+        mc('Von welchem Tier stammen alle Hunde ab?', ['Wolf', 'Fuchs', 'Hyäne', 'Schakal'], 'Vor über 15 000 Jahren begannen Menschen, Wölfe zu zähmen. Durch Züchtung entstanden die Rassen.'),
+        sort('Hund oder Katze?', ['Hund', 'Katze'], [['Hetzjäger', 0], ['Schleichjäger', 1], ['Krallen einziehbar', 1], ['Rudeltier', 0], ['jagt mit Ausdauer', 0], ['lauert und springt', 1]], 'Der Hund hetzt seine Beute (wie der Wolf im Rudel), die Katze schleicht sich allein an.'),
+        mc('Was bedeutet **Züchtung**?', ['Der Mensch wählt Tiere mit gewünschten Merkmalen zur Fortpflanzung aus', 'Tiere werden im Zoo gehalten', 'Tiere werden dressiert', 'Tiere bekommen besonderes Futter'], 'So entstanden aus dem Wolf Rassen vom Chihuahua bis zur Dogge.'),
+        mc('Ein Hund zieht den Schwanz ein und legt die Ohren an. Was zeigt er?', ['Angst oder Unterwerfung', 'Freude', 'Angriffslust', 'Hunger'], 'Hunde verständigen sich vor allem über Körpersprache – wie Wölfe im Rudel.'),
+        mc('Warum können Katzen fast lautlos schleichen?', ['Sie ziehen die Krallen ein und laufen auf weichen Ballen', 'Sie sind sehr leicht', 'Sie halten die Luft an', 'Sie haben keine Krallen'], 'Hundekrallen klackern auf hartem Boden – Hunde können sie nicht einziehen.'),
+        mc('Welcher Sinn ist beim Hund besonders gut?', ['Geruchssinn', 'Geschmackssinn', 'Farbensehen', 'Tastsinn'], 'Hunde sind „Nasentiere“ – darum gibt es Spür- und Rettungshunde.'),
+        tf('Junge Katzen kommen mit offenen Augen auf die Welt.', false, 'Katzenjunge sind Nesthocker: Sie sind anfangs blind und taub und werden gesäugt.'),
+        mc('Welche Zähne sind typisch für ein Fleischfressergebiss?', ['Lange Fangzähne und scharfe Reißzähne', 'Breite, flache Mahlzähne', 'Ständig nachwachsende Nagezähne', 'Gar keine Zähne'], 'Mit den Fangzähnen packen, mit den Reißzähnen Fleisch zerschneiden.'),
+        word('In dieser Gruppe leben Wölfe zusammen:', 'RUDEL'),
+        mc('Woran erkennt man, dass Hund und Katze **Zehengänger** sind?', ['Sie laufen nur auf den Zehen, die Ferse berührt den Boden nicht', 'Sie haben besonders lange Zehen', 'Sie laufen auf der ganzen Fußsohle', 'Sie haben Hufe'], 'So sind sie leise und schnell. Mensch und Bär sind Sohlengänger.'),
+      ] },
+      { title: 'Nutztiere: Rind, Schwein, Pferd', emoji: '🐄', questions: [
+        order('Welchen Weg nimmt das Gras im Rind?', ['abrupfen und schlucken', 'Pansen', 'Netzmagen', 'Wiederkäuen im Maul', 'Blättermagen', 'Labmagen'], 'Erst nach dem Wiederkäuen rutscht der Brei in Blätter- und Labmagen.'),
+        mc('Wie viele Abteilungen hat der Magen eines Rindes?', ['4', '1', '2', '7'], 'Pansen, Netzmagen, Blättermagen und Labmagen.'),
+        mc('Wer hilft dem Rind im Pansen, das Gras zu verdauen?', ['Milliarden winziger Bakterien', 'Würmer', 'Magensteine', 'Niemand'], 'Die Bakterien zerlegen die harten Pflanzenfasern.'),
+        sort('Was frisst das Tier?', ['Pflanzenfresser', 'Fleischfresser', 'Allesfresser'], [['Rind', 0], ['Pferd', 0], ['Katze', 1], ['Hausschwein', 2], ['Wolf', 1], ['Mensch', 2]], 'Am Gebiss erkennt man die Nahrung: Mahlzähne, Reißzähne oder von allem etwas.'),
+        mc('Wer ist der wilde Vorfahr des Hausschweins?', ['Wildschwein', 'Auerochse', 'Wildpferd', 'Warzenschwein'], 'Hausschweine sind wie Wildschweine Allesfresser.'),
+        mc('Wer ist der Vorfahr unserer Hausrinder?', ['Auerochse', 'Wisent', 'Büffel', 'Elch'], 'Der Auerochse ist seit fast 400 Jahren ausgestorben.'),
+        match('Wer läuft wie?', [['Mensch und Bär', 'Sohlengänger'], ['Hund und Katze', 'Zehengänger'], ['Pferd und Rind', 'Zehenspitzengänger']], 'Der Huf des Pferdes ist ein riesiger Zehennagel.'),
+        mc('Warum gilt das Pferd als **Fluchttier**?', ['Bei Gefahr rennt es schnell weg statt zu kämpfen', 'Es flieht vor Regen', 'Es lebt allein', 'Es kann nicht schwimmen'], 'Lange Beine, gute Ohren und Augen seitlich am Kopf helfen dabei.'),
+        mc('Woran erkennt man ein Pflanzenfressergebiss?', ['An breiten Mahlzähnen', 'An langen Fangzähnen', 'An scharfen Reißzähnen', 'An sehr kleinen Zähnen'], 'Mit den Mahlzähnen wird hartes Gras zerrieben.'),
+        word('Die erste und größte Abteilung des Rindermagens:', 'PANSEN'),
+      ] },
+      { title: 'Spezialisten im Lebensraum', emoji: '🦇', questions: [
+        match('Welche Angepasstheit gehört zu welchem Tier?', [['Maulwurf', 'Grabhände wie Schaufeln'], ['Fledermaus', 'Flughaut und Ultraschall'], ['Seehund', 'Speckschicht und Flossen'], ['Feldhase', 'lange Hinterbeine zum Hakenschlagen']]),
+        mc('Wie finden Fledermäuse im Dunkeln ihre Beute?', ['Mit Ultraschall-Rufen und deren Echo', 'Mit besonders großen Augen', 'Mit dem Geruchssinn', 'Mit Tasthaaren'], 'Sie „sehen“ mit den Ohren.'),
+        sort('Feldhase oder Wildkaninchen?', ['Feldhase', 'Wildkaninchen'], [['Junge kommen sehend und behaart zur Welt', 0], ['lebt in unterirdischen Bauen', 1], ['Junge kommen nackt und blind zur Welt', 1], ['lebt allein auf offenem Feld', 0], ['lebt in großen Gruppen', 1]], 'Hasen sind Nestflüchter, Kaninchen Nesthocker.'),
+        tf('Wale sind Fische.', false, 'Wale atmen mit Lungen und säugen ihre Jungen – sie sind Säugetiere. Darum ist „Walfisch“ ein irreführender Name.'),
+        mc('Was bedeutet das biologische Prinzip **Struktur und Funktion**?', ['Der Bau eines Körperteils passt zu seiner Aufgabe', 'Alle Tiere sind gleich gebaut', 'Tiere verändern ihren Körper nach Lust', 'Struktur ist wichtiger als Funktion'], 'Beispiel: Die Grabhand des Maulwurfs ist breit wie eine Schaufel.'),
+        mc('Warum frieren Seehunde im eiskalten Meer nicht?', ['Eine dicke Speckschicht hält warm', 'Sie haben Federn', 'Sie sind wechselwarm', 'Sie schwimmen immer schnell'], 'Fett isoliert noch besser als Fell im Wasser.'),
+        mc('Welches Säugetier lebt fast nur unter der Erde?', ['Maulwurf', 'Eichhörnchen', 'Reh', 'Fledermaus'], 'Er jagt Regenwürmer in seinen Gängen und sieht kaum etwas.'),
+        tf('Die Fledermaus ist das einzige Säugetier, das richtig fliegen kann.', true, 'Ihre Flügel sind eine Flughaut zwischen den verlängerten Fingern.'),
+        mc('Welches Merkmal haben **alle** Säugetiere?', ['Sie säugen ihre Jungen mit Milch', 'Sie haben vier Beine', 'Sie leben an Land', 'Sie fressen Fleisch'], 'Daher kommt der Name!'),
+        mc('Der Orang-Utan ist ein …', ['Menschenaffe', 'Halbaffe', 'Raubtier', 'Beuteltier'], 'Er lebt auf Bäumen im Regenwald – seine langen Arme sind perfekt zum Hangeln.'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
+  {
+    id: 'voegel', chapter: '2', current: true, title: 'Vögel', emoji: '🐦', sub: 'Merkmale, Fliegen, Vögel in ihren Lebensräumen, vom Ei zum Küken',
+    sayWho: 'sheep', say: 'Ich hab mit den Vorderbeinen geflattert – und bin nicht abgehoben. Mäh! Was haben Vögel, was ich nicht habe?',
+    explain: [
+      ['Merkmale der Vögel', '**Wirbeltiere** · **gleichwarm** (Körpertemperatur bleibt immer gleich) · atmen mit **Lungen** · **legen Eier** · **Federn** · **Schnabel** ohne Zähne · meist **vier Zehen mit Krallen** · **hohle, dünne Knochen** · schnelle Verdauung (spart Gewicht).', ''],
+      ['Leicht und stabil – wie Vögel fliegen', 'Fast überall wird Gewicht gespart: **hohle Knochen** mit feinen Streben, ein leichter Schnabel statt schwerer Zähne, schnelle Verdauung, Weibchen haben nur **einen Eierstock**. Die Lunge ist mit **Luftsäcken** verbunden, die den ganzen Körper durchziehen. Starke **Flugmuskeln** sitzen am Brustbein (Brustbeinkamm).', ''],
+      ['Federn', '**Daunen** wärmen · **Deckfedern** machen den Körper glatt und stromlinienförmig · **Schwungfedern** an den Flügeln tragen · **Schwanzfedern** steuern und bremsen.', ''],
+      ['Flugformen (Mäusebussard)', '**Ruderflug:** aktiv mit den Flügeln schlagen. **Gleitflug:** mit ausgebreiteten Flügeln schräg nach unten. **Segelflug:** in warmer, aufsteigender Luft kreisen, ohne zu schlagen. **Rüttelflug:** auf der Stelle schweben (Turmfalke).', ''],
+      ['Vögel in ihren Lebensräumen', '**Amsel:** Singvogel in Gärten, frisst Würmer und Beeren. **Stockente:** Schwimmfüße, Seihschnabel, gefettetes Gefieder. **Buntspecht:** Meißelschnabel, Kletterfuß, Stützschwanz. Der Schnabel verrät die Nahrung.', ''],
+      ['Zugvogel oder Standvogel', '**Zugvögel** (Mauersegler, Schwalbe, Storch) ziehen im Herbst in den Süden, weil sie hier keine Insekten finden. **Standvögel** (Amsel, Meise, Spatz, Specht) bleiben. Zugvögel orientieren sich an Sonne, Sternen und dem Magnetfeld der Erde.', ''],
+      ['Vom Ei zum Küken', 'Teile des Eis: **Kalkschale** (mit Poren), Schalenhaut, **Luftkammer**, **Eiklar**, **Dotter** (Nahrung), **Hagelschnüre** (halten den Dotter), **Keimscheibe** (hier wächst das Küken). Ein Hühnerküken schlüpft nach **21 Tagen**. **Nesthocker** (Amsel) / **Nestflüchter** (Huhn, Ente).', ''],
+      ['Hühnerhaltung', '**Käfig/Kleingruppe**, **Bodenhaltung**, **Freilandhaltung**, **Bio-Haltung** – sie unterscheiden sich in Platz, Auslauf und Futter. Der Code auf dem Ei verrät es: 0 = Bio, 1 = Freiland, 2 = Boden, 3 = Käfig.', ''],
+    ],
+    facts: ['Der Mauersegler schläft im Flug und bleibt manchmal zehn Monate ohne Landung in der Luft.', 'Vögel sind die letzten lebenden Dinosaurier – das Huhn ist mit dem T. rex verwandt.', 'Ein Specht hämmert bis zu 20-mal pro Sekunde – und bekommt kein Kopfweh.'],
+    task: ['Vogel-Zählung', 'Setz dich **zehn Minuten** ans Fenster, auf den Balkon oder in den Park. Mach eine Strichliste: Welche Vögel siehst du, und wie viele? Schau dir bei einem Vogel Schnabel und Füße genau an – was frisst er wohl, und wo lebt er?'],
+    levels: [
+      { title: 'Merkmale & Fliegen', emoji: '🪶', questions: [
+        sort('Ist das ein Merkmal der Vögel?', ['ja', 'nein'], [['Federn', 0], ['hohle Knochen', 0], ['Zähne im Schnabel', 1], ['legen Eier', 0], ['wechselwarm', 1], ['Fell', 1], ['atmen mit Lungen', 0]], 'Vögel sind gleichwarm wie Säugetiere – aber sie haben Federn statt Fell und keine Zähne.'),
+        mc('Warum sind Vogelknochen hohl?', ['Damit der Vogel leichter ist', 'Damit Luft für den Gesang hineinpasst', 'Weil Vögel keine Knochen brauchen', 'Damit sie schneller wachsen'], 'Innen stützen feine Streben die Knochen – leicht und trotzdem stabil.'),
+        mc('Wozu dienen die **Luftsäcke**?', ['Sie sind mit der Lunge verbunden, verbessern die Atmung und machen leichter', 'Sie speichern Futter', 'Sie dienen als Schwimmhilfe', 'Darin wachsen die Eier'], 'Die Luftsäcke durchziehen den ganzen Körper.'),
+        mc('Warum verdauen Vögel ihre Nahrung so schnell?', ['Um kein unnötiges Gewicht mit sich herumzutragen', 'Weil sie keinen Magen haben', 'Weil sie nur Wasser trinken', 'Damit sie mehr singen können'], 'Fliegen kostet viel Kraft – jedes Gramm zählt.'),
+        match('Welche Feder hat welche Aufgabe?', [['Daunen', 'wärmen'], ['Schwungfedern', 'tragen beim Fliegen'], ['Deckfedern', 'machen den Körper glatt'], ['Schwanzfedern', 'steuern und bremsen']]),
+        mc('Wo sitzen die kräftigen Flugmuskeln?', ['Am Brustbein (Brustbeinkamm)', 'Am Schwanz', 'In den Beinen', 'Am Kopf'], 'Der Brustbeinkamm ist wie ein Kiel – daran setzen die großen Muskeln an.'),
+        match('Welche Flugform ist das?', [['Ruderflug', 'kräftig mit den Flügeln schlagen'], ['Gleitflug', 'ohne Flügelschlag schräg abwärts'], ['Segelflug', 'in aufsteigender Warmluft kreisen'], ['Rüttelflug', 'auf der Stelle in der Luft stehen']], 'Der Mäusebussard nutzt beim Segelflug warme Aufwinde – das spart Kraft.'),
+        tf('Weibliche Vögel haben nur einen Eierstock.', true, 'Auch das spart Gewicht.'),
+        word('Vögel haben keine Zähne, sondern einen …', 'SCHNABEL'),
+        tf('Vögel sind gleichwarm.', true, 'Ihre Körpertemperatur liegt sogar bei etwa 40 °C. Federn halten die Wärme.'),
+      ] },
+      { title: 'Vögel in ihren Lebensräumen', emoji: '🌳', questions: [
+        match('Welcher Schnabel passt zu welcher Nahrung?', [['Mäusebussard (Hakenschnabel)', 'Mäuse'], ['Buchfink (Kegelschnabel)', 'Körner und Samen'], ['Stockente (Seihschnabel)', 'Kleintiere und Pflanzen aus dem Wasser'], ['Buntspecht (Meißelschnabel)', 'Insektenlarven unter der Rinde']]),
+        mc('Wie ist die Stockente an das Leben am See angepasst?', ['Schwimmfüße mit Schwimmhäuten und gefettetes Gefieder', 'Lange Krallen zum Klettern', 'Ein Hakenschnabel', 'Besonders große Augen'], 'Das Fett aus der Bürzeldrüse macht das Gefieder wasserdicht.'),
+        mc('Welche Angepasstheiten hat der Buntspecht?', ['Meißelschnabel, Kletterfuß und Stützschwanz', 'Schwimmhäute und Seihschnabel', 'Lange Beine und spitzer Schnabel', 'Hakenschnabel und Greiffüße'], 'Zwei Zehen zeigen nach vorne, zwei nach hinten – perfekt zum Klettern.'),
+        sort('Zugvogel oder Standvogel?', ['Zugvogel', 'Standvogel'], [['Mauersegler', 0], ['Amsel', 1], ['Rauchschwalbe', 0], ['Kohlmeise', 1], ['Weißstorch', 0], ['Buntspecht', 1]], 'Zugvögel fressen meist Insekten, die es im Winter nicht gibt.'),
+        mc('Warum ziehen Mauersegler im Herbst nach Afrika?', ['Bei uns gibt es im Winter keine fliegenden Insekten', 'Sie vertragen keinen Schnee', 'Sie wollen dort brüten', 'Die Tage sind bei uns zu lang'], 'Nicht die Kälte, sondern der Futtermangel ist das Problem.'),
+        mc('Woran orientieren sich Zugvögel?', ['An Sonne, Sternen und dem Magnetfeld der Erde', 'Nur am Geruch', 'An Flugzeugen', 'Sie fliegen zufällig'], 'Viele Vögel haben einen eingebauten Kompass.'),
+        mc('Die Amsel ist ein …', ['Singvogel städtischer Gärten', 'Wasservogel', 'Greifvogel', 'Zugvogel aus Afrika'], 'Früher lebte sie nur im Wald – heute ist sie in Städten zu Hause.'),
+        mc('Wie hilft man Vögeln im Winter am besten?', ['Mit geeignetem Futter wie Körnern und Fettfutter – ohne Salz und Brot', 'Mit Brot und Essensresten', 'Mit Milch', 'Gar nicht füttern, sie fliegen alle weg'], 'Brot quillt im Magen auf und macht krank.'),
+        mc('Was bedeutet das Prinzip **Angepasstheit**?', ['Körperbau und Verhalten passen zum Lebensraum', 'Tiere passen sich in einem Tag an', 'Alle Vögel sehen gleich aus', 'Vögel ändern ihr Gefieder nach Laune'], 'Schnabel, Füße und Gefieder passen genau zur Lebensweise.'),
+      ] },
+      { title: 'Vom Ei zum Küken', emoji: '🐣', questions: [
+        match('Welcher Teil des Eis hat welche Aufgabe?', [['Dotter', 'Nahrung für das Küken'], ['Kalkschale', 'Schutz, Luft dringt durch Poren'], ['Hagelschnüre', 'halten den Dotter in der Mitte'], ['Keimscheibe', 'hier entwickelt sich das Küken'], ['Luftkammer', 'Luftvorrat für den ersten Atemzug']]),
+        mc('Wie lange brütet eine Henne, bis die Küken schlüpfen?', ['Etwa 21 Tage', 'Etwa 3 Tage', 'Etwa 3 Monate', 'Etwa 1 Jahr'], 'Mit dem Eizahn pickt das Küken die Schale von innen auf.'),
+        sort('Nesthocker oder Nestflüchter?', ['Nesthocker', 'Nestflüchter'], [['Amsel', 0], ['Haushuhn', 1], ['Stockente', 1], ['Kohlmeise', 0], ['Buntspecht', 0], ['Gans', 1]], 'Nesthocker schlüpfen nackt und blind, Nestflüchter laufen sofort los.'),
+        tf('Durch die Kalkschale eines Eis kommt Luft.', true, 'Die Schale hat Tausende winziger Poren.'),
+        order('Vom Ei zum Küken – ordne.', ['Befruchtete Eizelle', 'Henne legt das Ei', 'Bebrüten bei etwa 38 °C', 'Küken wächst aus der Keimscheibe heran', 'Küken schlüpft'], 'Nur aus befruchteten Eiern schlüpfen Küken.'),
+        match('Welche Haltungsform hat welche Ziffer auf dem Ei?', [['0', 'Bio-Haltung'], ['1', 'Freilandhaltung'], ['2', 'Bodenhaltung'], ['3', 'Käfighaltung (Kleingruppe)']], 'Je kleiner die Zahl, desto mehr Platz und Auslauf.'),
+        mc('Was unterscheidet **Legehennen** von **Masthähnchen**?', ['Legehennen sind für viele Eier gezüchtet, Masthähnchen für schnelles Fleischwachstum', 'Es gibt keinen Unterschied', 'Masthähnchen legen mehr Eier', 'Legehennen sind wilde Vögel'], 'Beide sind durch Züchtung entstanden.'),
+        mc('Woran erkennt man, ob ein Ei befruchtet war?', ['An der Keimscheibe, die größer ist', 'An der Farbe der Schale', 'Am Gewicht', 'Gar nicht'], 'Supermarkteier sind meist unbefruchtet – es gibt keinen Hahn im Stall.'),
+        word('Diese weiße Schicht umgibt den Dotter:', 'EIKLAR'),
+        mc('Welche Haltungsform bietet den Hühnern am meisten Platz und Auslauf?', ['Bio-Haltung', 'Käfighaltung', 'Bodenhaltung', 'Alle gleich'], 'Bio-Hühner haben Auslauf ins Freie und bekommen Bio-Futter.'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
     {
-      id: 'saeuger', title: 'Säugetiere', emoji: '🐕', sub: 'Hund, Katze, Rind – und Spezialisten',
-      sayWho: 'elara', say: 'Wusstest du, dass der Dackel und der Wolf verwandt sind? Und dass eine Kuh vier Mägen hat?',
-      explain: [
-        ['Merkmale der Säugetiere', 'Säugetiere haben ein **Fell** (Haare), atmen mit **Lungen**, sind **gleichwarm** (immer gleiche Körpertemperatur), bringen meist **lebende Junge** zur Welt und **säugen** sie mit Milch.', 'Auch Wale, Fledermäuse und Menschen sind Säugetiere.'],
-        ['Hund und Katze', '**Hund:** stammt vom Wolf ab, Rudeltier, **Hetzjäger** mit viel Ausdauer, super Nase.\n**Katze:** Einzelgängerin, **Schleichjägerin**, zieht die Krallen ein und schleicht lautlos, sieht bei Dämmerung sehr gut.\nBeide haben ein Fleischfressergebiss mit Fang- und Reißzähnen.', ''],
-        ['Das Rind – ein Wiederkäuer', 'Rinder sind Pflanzenfresser mit breiten Mahlzähnen. Ihr Magen hat **vier Abteilungen**: Pansen → Netzmagen → (zurück ins Maul: Wiederkäuen) → Blättermagen → Labmagen. Im Pansen helfen Milliarden Bakterien, das Gras zu zersetzen.', ''],
-        ['Angepasstheit', 'Der Körperbau passt zum Lebensraum: Der **Maulwurf** hat Grabhände, die **Fledermaus** eine Flughaut und Ultraschall-Ortung, der **Wal** Flossen und eine dicke Speckschicht.', ''],
-      ],
-      facts: ['Eine Hundenase hat bis zu 300 Millionen Riechzellen – wir Menschen nur etwa 5 Millionen.', 'Eine Kuh kaut bis zu 30 000-mal am Tag und produziert dabei über 100 Liter Speichel.', 'Der Blauwal ist das größte Tier, das je gelebt hat – und er ist ein Säugetier. Sein Herz ist so groß wie ein Kleinwagen.'],
-      task: ['Pfoten-Detektiv', 'Beobachte fünf Minuten lang einen Hund oder eine Katze. Wie setzt das Tier die Pfoten auf? Was machen Ohren und Schwanz? Zeichne einen Pfotenabdruck: Sieht man Krallen (Hund) oder nicht (Katze)?'],
-      levels: [
-        { title: 'Hund & Katze', emoji: '🐾', questions: [
-          mc('Von welchem Tier stammen alle Hunde ab?', ['Wolf', 'Fuchs', 'Hyäne', 'Bär'], 'Vor über 15 000 Jahren begannen Menschen, Wölfe zu zähmen. Durch Züchtung entstanden die Hunderassen.'),
-          sort('Hund oder Katze?', ['Hund', 'Katze'], [['Hetzjäger', 0], ['Schleichjäger', 1], ['Krallen einziehbar', 1], ['Rudeltier', 0], ['jagt mit Ausdauer', 0], ['lauert und springt', 1]], 'Der Hund hetzt seine Beute im Rudel, die Katze schleicht sich allein an.'),
-          mc('Welches Merkmal haben **alle** Säugetiere?', ['Sie säugen ihre Jungen mit Milch', 'Sie haben vier Beine', 'Sie leben an Land', 'Sie fressen Fleisch'], 'Daher kommt der Name! Wale leben im Wasser, Fledermäuse fliegen – aber alle säugen ihre Jungen.'),
-          tf('Wale sind Fische.', false, 'Wale atmen mit Lungen, sind gleichwarm und säugen ihre Jungen – sie sind Säugetiere.'),
-          mc('Welche Zähne sind typisch für ein Fleischfressergebiss?', ['Lange Fangzähne und scharfe Reißzähne', 'Breite, flache Mahlzähne', 'Nagezähne, die ständig nachwachsen', 'Gar keine Zähne'], 'Mit den Fangzähnen wird die Beute gepackt, mit den Reißzähnen das Fleisch zerschnitten.'),
-          word('In dieser Gruppe leben Wölfe zusammen:', 'RUDEL'),
-          mc('Warum können Katzen fast lautlos schleichen?', ['Sie ziehen die Krallen ein und laufen auf weichen Ballen', 'Sie sind so leicht', 'Sie halten die Luft an', 'Sie haben keine Krallen'], 'Hunde können ihre Krallen nicht einziehen – darum hört man sie auf hartem Boden klackern.'),
-          tf('Säugetiere sind gleichwarm.', true, 'Ihre Körpertemperatur bleibt immer etwa gleich – egal, wie kalt es draußen ist. Das Fell hilft dabei.'),
-          mc('Welcher Sinn ist beim Hund besonders gut?', ['Geruchssinn', 'Geschmackssinn', 'Farbensehen', 'Tastsinn'], 'Hunde sind „Nasentiere“. Darum arbeiten sie als Spür- und Rettungshunde.'),
-        ] },
-        { title: 'Kuh, Maulwurf & Co.', emoji: '🐄', questions: [
-          order('Welchen Weg nimmt das Gras im Rind?', ['abrupfen und schlucken', 'Pansen', 'Netzmagen', 'Wiederkäuen im Maul', 'Blättermagen', 'Labmagen'], 'Erst nach dem Wiederkäuen rutscht der Brei in Blätter- und Labmagen weiter.'),
-          mc('Wie viele Abteilungen hat der Magen eines Rindes?', ['4', '1', '2', '7'], 'Pansen, Netzmagen, Blättermagen und Labmagen.'),
-          match('Welche Angepasstheit gehört zu welchem Tier?', [['Maulwurf', 'Grabhände wie Schaufeln'], ['Fledermaus', 'Flughaut und Ultraschall'], ['Wal', 'Flossen und Speckschicht'], ['Eichhörnchen', 'buschiger Schwanz zum Steuern']]),
-          mc('Wie finden Fledermäuse im Dunkeln ihre Beute?', ['Mit Ultraschall-Rufen und deren Echo', 'Mit besonders großen Augen', 'Mit ihrem Geruchssinn', 'Mit Tasthaaren'], 'Sie stoßen Rufe aus, die wir nicht hören können, und „sehen“ mit den Ohren (Echo-Ortung).'),
-          mc('Woran erkennt man ein Pflanzenfressergebiss?', ['An breiten Mahlzähnen mit rauer Oberfläche', 'An langen, spitzen Fangzähnen', 'An scharfen Reißzähnen', 'An sehr kleinen Zähnen'], 'Mit den Mahlzähnen wird das harte Gras zerrieben.'),
-          tf('Die Fledermaus ist ein Vogel.', false, 'Sie hat ein Fell, bringt lebende Junge zur Welt und säugt sie – ein Säugetier. Sie ist das einzige Säugetier, das richtig fliegen kann.'),
-          match('Wer läuft wie?', [['Mensch und Bär', 'Sohlengänger'], ['Hund und Katze', 'Zehengänger'], ['Pferd und Rind', 'Zehenspitzengänger']], 'Pferde laufen nur auf der Spitze eines Zehs – der Huf ist ein riesiger Zehennagel.'),
-          mc('Welches Säugetier legt Eier?', ['Schnabeltier', 'Fledermaus', 'Delfin', 'Känguru'], 'Das Schnabeltier aus Australien legt Eier – säugt seine Jungen aber trotzdem mit Milch.'),
-          mc('Wie sind die vielen verschiedenen Hunderassen entstanden?', ['Durch Züchtung: Menschen wählten Tiere mit gewünschten Merkmalen aus', 'Durch verschiedenes Futter', 'Durch das Klima', 'Sie stammen von verschiedenen Wildtieren ab'], 'Vom Chihuahua bis zur Dogge – alle sind Nachfahren des Wolfs.'),
-          word('Die erste und größte Abteilung des Rindermagens:', 'PANSEN'),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'voegel', title: 'Vögel', emoji: '🐦', sub: 'Leichtbau, Federn, Eier und Schnäbel',
-      sayWho: 'sheep', say: 'Ich hab mit den Vorderbeinen geflattert – und bin nicht abgehoben. Mäh! Was haben Vögel, was ich nicht habe?',
-      explain: [
-        ['Gebaut zum Fliegen', 'Vögel sind Leichtbau-Wunder: **hohle, luftgefüllte Knochen**, **Federn**, ein leichter **Schnabel ohne Zähne** und **Luftsäcke**. Die Vordergliedmaßen sind Flügel. Kräftige Flugmuskeln sitzen am Brustbein.', 'Eine Amsel wiegt nur etwa 100 g – so viel wie eine Tafel Schokolade.'],
-        ['Federn', '**Daunen** halten warm.\n**Deckfedern** machen den Körper glatt und stromlinienförmig.\n**Schwungfedern** am Flügel tragen den Vogel.\n**Schwanzfedern** steuern und bremsen.', ''],
-        ['Vom Ei zum Küken', 'Vögel legen Eier mit Kalkschale und brüten sie mit Körperwärme aus. Der **Dotter** ernährt das Küken.\n**Nesthocker** (Amsel, Meise) schlüpfen nackt und blind.\n**Nestflüchter** (Huhn, Ente) laufen sofort los.', ''],
-        ['Schnabel und Füße verraten die Nahrung', 'Hakenschnabel → Fleisch (Bussard). Kegelschnabel → Körner (Fink). Seihschnabel → Futter aus dem Wasser filtern (Ente). Meißelschnabel → Insekten im Holz (Specht).', ''],
-      ],
-      facts: ['Der Mauersegler schläft im Flug und landet fast nur zum Brüten – manche bleiben zehn Monate ohne Pause in der Luft.', 'Vögel sind die letzten lebenden Dinosaurier. Das Huhn ist also mit dem T. rex verwandt!', 'Ein Specht hämmert bis zu 20-mal pro Sekunde – und bekommt trotzdem kein Kopfweh.'],
-      task: ['Vogel-Zählung', 'Setz dich **zehn Minuten** ans Fenster, auf den Balkon oder in den Park. Mach eine Strichliste: Welche Vögel siehst du, und wie viele? Schau dir bei einem Vogel den Schnabel genau an – was frisst er wohl?'],
-      levels: [
-        { title: 'Feder-Leicht', emoji: '🪶', questions: [
-          mc('Warum sind Vogelknochen so leicht?', ['Sie sind hohl und mit Luft gefüllt', 'Sie sind aus Knorpel', 'Sie sind sehr kurz', 'Vögel haben keine Knochen'], 'Innen sind sie mit feinen Streben verstärkt – leicht und trotzdem stabil, wie bei einem Kran.'),
-          match('Welche Feder hat welche Aufgabe?', [['Daunen', 'wärmen'], ['Schwungfedern', 'tragen beim Fliegen'], ['Deckfedern', 'machen den Körper glatt'], ['Schwanzfedern', 'steuern und bremsen']]),
-          tf('Alle Vögel können fliegen.', false, 'Pinguine, Strauße und Kiwis können es nicht. Federn und Eier mit Kalkschale haben aber alle Vögel.'),
-          sort('Nesthocker oder Nestflüchter?', ['Nesthocker', 'Nestflüchter'], [['Amsel', 0], ['Huhn', 1], ['Stockente', 1], ['Kohlmeise', 0], ['Storch', 0], ['Gans', 1]], 'Nesthocker schlüpfen nackt und blind und werden lange gefüttert. Nestflüchter können sofort laufen und sehen.'),
-          mc('Was ernährt das Küken, solange es im Ei heranwächst?', ['Der Dotter', 'Die Kalkschale', 'Die Luftkammer', 'Würmer von der Mutter'], 'Dotter und Eiklar enthalten alles, was das Küken braucht.'),
-          word('Vögel haben keine Zähne, sondern einen …', 'SCHNABEL'),
-          tf('Vögel sind gleichwarm.', true, 'Ihre Körpertemperatur liegt sogar bei etwa 40 °C. Die Daunen halten sie warm.'),
-          mc('Womit hält ein Vogel sein Gefieder wasserdicht?', ['Er fettet es mit Öl aus der Bürzeldrüse ein', 'Er wälzt sich im Sand', 'Er trocknet es in der Sonne', 'Das Gefieder ist aus Plastik'], 'Die Bürzeldrüse sitzt am Schwanzansatz. Besonders wichtig ist das für Enten.'),
-        ] },
-        { title: 'Vogel-Profi', emoji: '🦅', questions: [
-          match('Welcher Schnabel passt zu welcher Nahrung?', [['Mäusebussard (Hakenschnabel)', 'Mäuse'], ['Buchfink (Kegelschnabel)', 'Körner und Samen'], ['Stockente (Seihschnabel)', 'Kleintiere aus dem Wasser'], ['Buntspecht (Meißelschnabel)', 'Insekten unter der Rinde']]),
-          order('Bringe das Vogel-Jahr in die richtige Reihenfolge.', ['Balz', 'Nestbau', 'Eier legen', 'Brüten', 'Küken schlüpfen', 'Jungvögel werden flügge'], 'Flügge heißt: Die Jungen können fliegen und verlassen das Nest.'),
-          mc('Wozu dienen die **Luftsäcke** im Vogelkörper?', ['Sie machen den Vogel leichter und helfen bei der Atmung', 'Sie speichern Futter', 'Sie dienen als Schwimmhilfe', 'Darin wachsen die Eier'], 'Dank der Luftsäcke bekommt der Vogel beim Ein- **und** Ausatmen frische Luft in die Lunge.'),
-          mc('Warum fliegen Störche im Herbst nach Afrika?', ['Weil sie bei uns im Winter zu wenig Nahrung finden', 'Weil sie die Kälte nicht aushalten', 'Weil sie dort Urlaub machen', 'Weil die Tage dort länger sind'], 'Nicht die Kälte ist das Problem – Frösche, Mäuse und Insekten sind im Winter kaum zu finden.'),
-          mc('Wie lange brütet eine Henne, bis die Küken schlüpfen?', ['Etwa 21 Tage', 'Etwa 3 Tage', 'Etwa 3 Monate', 'Etwa 1 Jahr'], 'Nach drei Wochen pickt das Küken mit dem Eizahn die Schale von innen auf.'),
-          tf('Durch die Kalkschale eines Eis kommt Luft.', true, 'Die Schale hat Tausende winziger Poren. So bekommt das Küken Sauerstoff.'),
-          mc('Der Turmfalke bleibt in der Luft an einer Stelle „stehen“, um Mäuse zu erspähen. Wie heißt diese Flugart?', ['Rüttelflug', 'Segelflug', 'Gleitflug', 'Sturzflug'], 'Beim Rüttelflug schlägt er sehr schnell mit den Flügeln. Der Bussard dagegen kreist im Segelflug.'),
-          mc('Von welchen Tieren stammen die Vögel ab?', ['Von Dinosauriern', 'Von Fledermäusen', 'Von Fischen', 'Von Insekten'], 'Der Urvogel Archaeopteryx hatte Federn, aber noch Zähne und einen langen Schwanz. Er wurde in Bayern gefunden.'),
-          word('Diese flauschigen Federn halten warm:', 'DAUNEN'),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'fische', title: 'Fische', emoji: '🐟', sub: 'Leben unter Wasser: Kiemen, Flossen, Schwimmblase',
-      sayWho: 'elara', say: 'Wie atmet man eigentlich unter Wasser? Und warum sinkt ein Fisch nicht einfach auf den Grund?',
-      explain: [
-        ['Gebaut fürs Wasser', 'Fische haben einen **stromlinienförmigen** Körper, **Flossen** und eine Haut mit **Schuppen und Schleim** – so gleiten sie leicht durchs Wasser. Sie sind **wechselwarm**: Ihre Körpertemperatur passt sich dem Wasser an.', ''],
-        ['Atmen mit Kiemen', 'Der Fisch nimmt Wasser durch das Maul auf und drückt es durch die **Kiemen** nach außen. Die feinen Kiemenblättchen nehmen dabei den im Wasser gelösten **Sauerstoff** ins Blut auf.', ''],
-        ['Schwimmblase und Seitenlinie', 'Die **Schwimmblase** ist mit Gas gefüllt. Damit kann der Fisch im Wasser schweben, ohne Kraft zu brauchen.\nMit dem **Seitenlinienorgan** spürt er Strömungen und Bewegungen – auch im Dunkeln.', ''],
-        ['Fortpflanzung', 'Das Weibchen legt viele Eier (**Laich**) ins Wasser, das Männchen gibt seine Spermien darüber: **äußere Befruchtung**. Aus den Eiern schlüpfen Larven mit Dottersack.', ''],
-      ],
-      facts: ['Der Mondfisch legt bis zu 300 Millionen Eier auf einmal – Weltrekord!', 'Lachse finden nach Jahren im Meer den Bach wieder, in dem sie geschlüpft sind – am Geruch des Wassers.', 'Haie haben keine Schwimmblase. Viele müssen ständig schwimmen, sonst sinken sie.'],
-      task: ['Der Flaschentaucher', 'Fülle eine Plastikflasche randvoll mit Wasser. Gib eine kleine, halb mit Wasser gefüllte Pipette (oder ein Tütchen Sojasoße/Ketchup) hinein, sodass sie gerade so schwimmt. Deckel zu – und drücken! Der „Taucher“ sinkt. So ähnlich arbeitet eine Schwimmblase: mehr oder weniger Gas = steigen oder sinken.'],
-      levels: [
-        { title: 'Abtauchen', emoji: '🤿', questions: [
-          mc('Womit atmen Fische?', ['Mit Kiemen', 'Mit Lungen', 'Durch die Haut', 'Mit der Schwimmblase'], 'Die Kiemen holen den Sauerstoff, der im Wasser gelöst ist.'),
-          mc('Wozu dient die **Schwimmblase**?', ['Damit kann der Fisch im Wasser schweben', 'Damit atmet der Fisch', 'Darin speichert er Futter', 'Damit erzeugt er Töne'], 'Mehr Gas in der Blase → der Fisch steigt. Weniger Gas → er sinkt.'),
-          match('Welche Flosse hat welche Aufgabe?', [['Schwanzflosse', 'Antrieb'], ['Brust- und Bauchflossen', 'steuern und bremsen'], ['Rücken- und Afterflosse', 'verhindern das Umkippen']]),
-          tf('Fische sind wechselwarm.', true, 'Ihre Körpertemperatur ist immer etwa so hoch wie die des Wassers.'),
-          word('Das Atmungsorgan der Fische:', 'KIEMEN'),
-          mc('Warum ist der Fischkörper stromlinienförmig?', ['So ist der Wasserwiderstand klein', 'So sieht er größer aus', 'So passt mehr Futter hinein', 'So kann er besser hören'], 'Vorne spitz, in der Mitte dick, hinten schmal – so sind auch U-Boote gebaut.'),
-          mc('Womit ist die Haut der meisten Fische bedeckt?', ['Mit Schuppen und einer Schleimschicht', 'Mit Fell', 'Mit Federn', 'Mit trockenen Hornplatten'], 'Der Schleim macht glitschig und schützt vor Krankheitserregern.'),
-          tf('Der Delfin ist ein Fisch.', false, 'Delfine sind Säugetiere: Sie atmen mit Lungen und müssen zum Luftholen auftauchen.'),
-        ] },
-        { title: 'Tiefsee-Wissen', emoji: '🌊', questions: [
-          order('Wie atmet ein Fisch? Ordne die Schritte.', ['Maul öffnen – Wasser strömt ein', 'Maul schließen', 'Wasser fließt an den Kiemen vorbei', 'Sauerstoff geht ins Blut', 'Wasser strömt hinter dem Kiemendeckel aus']),
-          mc('Was nimmt ein Fisch mit dem **Seitenlinienorgan** wahr?', ['Strömungen und Bewegungen im Wasser', 'Farben', 'Gerüche', 'Die Wassertemperatur'], 'So merkt er, wenn sich ein Feind nähert – und Schwärme schwimmen, ohne zusammenzustoßen.'),
-          mc('Wie nennt man die Eier der Fische?', ['Laich', 'Brut', 'Gelege', 'Rogenblase'], 'Auch Frösche legen Laich.'),
-          mc('Wo findet bei den meisten Fischen die Befruchtung statt?', ['Im Wasser, außerhalb des Körpers', 'Im Körper des Weibchens', 'Im Körper des Männchens', 'In einem Nest an Land'], 'Das nennt man **äußere Befruchtung**.'),
-          tf('In warmem Wasser ist mehr Sauerstoff gelöst als in kaltem.', false, 'Umgekehrt! In heißen Sommern kann Fischen im warmen Wasser der Sauerstoff knapp werden.'),
-          mc('Warum legen viele Fische Tausende von Eiern?', ['Weil die meisten Eier und Jungfische gefressen werden', 'Weil sie so viel Platz haben', 'Weil sie die Eier essen', 'Weil die Eier so klein sind'], 'Die meisten Fische kümmern sich nicht um ihre Jungen. Nur wenige überleben.'),
-          sort('Fisch oder kein Fisch?', ['Fisch', 'kein Fisch'], [['Forelle', 0], ['Hai', 0], ['Delfin', 1], ['Seepferdchen', 0], ['Wal', 1], ['Tintenfisch', 1]], 'Delfin und Wal sind Säugetiere, der Tintenfisch ist ein Weichtier. Das Seepferdchen ist wirklich ein Fisch!'),
-          mc('Viele Fische haben einen dunklen Rücken und einen hellen Bauch. Warum?', ['Tarnung: von oben und von unten schwer zu sehen', 'Der Bauch bekommt weniger Sonne', 'Am Rücken sitzen mehr Schuppen', 'Das ist Zufall'], 'Von oben verschwimmt der dunkle Rücken mit dem Grund, von unten der helle Bauch mit dem Himmel.'),
-          mc('Wohin wandern Lachse, um ihre Eier abzulegen?', ['Vom Meer zurück in den Fluss, in dem sie geschlüpft sind', 'Vom Fluss ins Meer', 'In die Tiefsee', 'An den Strand'], 'Früher schwammen Lachse dafür den Rhein hinauf – bis in den Schwarzwald. Heute siedelt man sie wieder an.'),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'amphibien', title: 'Amphibien & Reptilien', emoji: '🐸', sub: 'Frosch, Molch, Eidechse und Schlange',
-      sayWho: 'sheep', say: 'Ein Frosch ist doch einfach eine nasse Eidechse ohne Schwanz. Mäh? … Oder?',
-      explain: [
-        ['Amphibien – Leben in zwei Welten', '„Amphibie“ heißt „doppellebig“. Frösche, Kröten, Molche und Salamander haben eine **nackte, feuchte Haut**, durch die sie auch atmen. Ihre Eier (Laich) legen sie ins **Wasser**.', ''],
-        ['Metamorphose', 'Aus dem Laich schlüpfen **Kaulquappen** mit Kiemen und Ruderschwanz. Dann wachsen Hinterbeine, Vorderbeine, die Lunge entsteht, der Schwanz bildet sich zurück – fertig ist der Frosch. Dieser Gestaltwandel heißt **Metamorphose**.', ''],
-        ['Reptilien – echte Landtiere', 'Eidechsen, Schlangen, Schildkröten und Krokodile haben eine **trockene Haut mit Hornschuppen**, die vor dem Austrocknen schützt. Sie atmen nur mit **Lungen** und legen Eier mit weicher, lederartiger Schale **an Land**.', ''],
-        ['Wechselwarm', 'Amphibien und Reptilien sind **wechselwarm**: Ihre Körpertemperatur hängt von der Umgebung ab. Darum sonnen sich Eidechsen – und im Winter fallen sie in **Kältestarre**.', ''],
-      ],
-      facts: ['Der Feuersalamander ist ein „Regenmännchen“: Er kommt vor allem bei Regen aus seinem Versteck. Sein Gelb-Schwarz warnt: Achtung, giftig!', 'Der Axolotl bleibt sein Leben lang eine Larve mit Kiemen – und kann sogar Beine nachwachsen lassen.', 'Schlangen riechen mit der Zunge: Beim Züngeln sammeln sie Duftstoffe aus der Luft.'],
-      task: ['Frosch-Comic', 'Zeichne die Entwicklung vom Laich zum Frosch als Comic mit **sechs Bildern**. Gib der Kaulquappe einen Namen und lass sie in Sprechblasen erzählen, was sich gerade an ihr verändert.'],
-      levels: [
-        { title: 'Frosch & Eidechse', emoji: '🦎', questions: [
-          order('Vom Laich zum Frosch – ordne die Entwicklung.', ['Laich', 'Kaulquappe mit Kiemen', 'Hinterbeine wachsen', 'Vorderbeine wachsen', 'Schwanz bildet sich zurück', 'junger Frosch'], 'Erst die Hinterbeine, dann die Vorderbeine!'),
-          mc('Was bedeutet **Metamorphose**?', ['Gestaltwandel', 'Winterschlaf', 'Häutung', 'Tarnung'], 'Die Kaulquappe sieht völlig anders aus als der fertige Frosch.'),
-          sort('Amphibie oder Reptil?', ['Amphibie', 'Reptil'], [['Grasfrosch', 0], ['Zauneidechse', 1], ['Feuersalamander', 0], ['Ringelnatter', 1], ['Erdkröte', 0], ['Schildkröte', 1]], 'Amphibien: feuchte, nackte Haut. Reptilien: trockene Schuppenhaut.'),
-          mc('Wie ist die Haut eines Frosches?', ['Nackt und feucht – er atmet auch durch die Haut', 'Trocken und schuppig', 'Mit feinem Fell bedeckt', 'Hart wie ein Panzer'], 'Deshalb müssen Frösche in feuchter Umgebung leben, sonst trocknen sie aus.'),
-          mc('Warum liegen Eidechsen morgens oft in der Sonne?', ['Sie sind wechselwarm und müssen sich aufwärmen', 'Sie wollen braun werden', 'Sie schlafen dort', 'Sie warten auf Regen'], 'Erst wenn der Körper warm ist, sind sie schnell genug für die Jagd.'),
-          tf('Die Blindschleiche ist eine Schlange.', false, 'Sie ist eine Echse ohne Beine. Anders als Schlangen kann sie blinzeln – und sie ist weder blind noch gefährlich.'),
-          word('So heißt die Larve des Frosches:', 'KAULQUAPPE'),
-          mc('Womit atmen junge Kaulquappen?', ['Mit Kiemen', 'Mit Lungen', 'Gar nicht', 'Mit dem Schwanz'], 'Erst während der Metamorphose entwickeln sich die Lungen.'),
-        ] },
-        { title: 'Reptilien-Ranger', emoji: '🐍', questions: [
-          mc('Eine Eidechse wird am Schwanz gepackt. Was kann sie tun?', ['Den Schwanz abwerfen – er wächst später nach', 'Sich totstellen', 'Gift spritzen', 'Die Farbe wechseln'], 'Der abgeworfene Schwanz zappelt weiter und lenkt den Feind ab.'),
-          mc('Wo legen Reptilien ihre Eier ab?', ['An Land – die Sonne brütet sie aus', 'Im Wasser', 'In einem Nest im Baum', 'Sie tragen sie im Maul'], 'Die Eier haben eine lederartige Schale, die vor dem Austrocknen schützt.'),
-          mc('Warum häuten sich Schlangen?', ['Ihre Hornhaut wächst nicht mit', 'Weil ihnen zu warm ist', 'Um Feinde zu erschrecken', 'Um sich zu tarnen'], 'Die alte Haut wird zu eng – das „Natternhemd“ wird abgestreift wie ein Strumpf.'),
-          match('Welche Körperbedeckung gehört zu welcher Tiergruppe?', [['Fische', 'Schuppen mit Schleim'], ['Amphibien', 'nackte, feuchte Haut'], ['Reptilien', 'trockene Hornschuppen'], ['Vögel', 'Federn'], ['Säugetiere', 'Fell']]),
-          sort('Gleichwarm oder wechselwarm?', ['gleichwarm', 'wechselwarm'], [['Amsel', 0], ['Forelle', 1], ['Igel', 0], ['Grasfrosch', 1], ['Eidechse', 1], ['Maus', 0]], 'Gleichwarm sind nur Vögel und Säugetiere.'),
-          tf('Erdkröten wandern im Frühjahr zu dem Gewässer, in dem sie selbst geschlüpft sind.', true, 'Darum gibt es Krötenzäune an Straßen: Helfer tragen die Tiere sicher hinüber.'),
-          mc('Welche Giftschlange lebt in Baden-Württemberg?', ['Kreuzotter', 'Ringelnatter', 'Blindschleiche', 'Schlingnatter'], 'Die Kreuzotter erkennt man am Zickzackband auf dem Rücken. Sie ist scheu und sehr selten geworden.'),
-          mc('Wie überstehen Frösche den Winter?', ['In Kältestarre, z. B. im Schlamm oder unter Laub', 'Sie fliegen in den Süden', 'Sie fressen sich Winterspeck an und schlafen im Nest', 'Sie bleiben einfach aktiv'], 'Herzschlag und Atmung sind fast auf null – die Tiere sind starr vor Kälte.'),
-          mc('Warum sind viele Amphibien bei uns gefährdet?', ['Teiche und Feuchtgebiete verschwinden, Straßen zerschneiden ihre Wege', 'Es gibt zu viele Störche', 'Sie vertragen keinen Regen', 'Sie finden keine Partner'], 'Schon ein kleiner Gartenteich ohne Fische hilft Fröschen und Molchen.'),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'pflanzen', title: 'Bau der Blütenpflanzen', emoji: '🌸', sub: 'Wurzel, Spross, Blatt und Blüte',
+      id: 'pflanzen', chapter: '6', title: 'Bau der Blütenpflanzen', emoji: '🌸', sub: 'Wurzel, Spross, Blatt und Blüte',
       sayWho: 'elara', say: 'Pflanzen stehen nur herum? Von wegen! Sie sind kleine Fabriken, die aus Licht, Luft und Wasser Zucker bauen.',
       explain: [
         ['Die Grundorgane', '**Wurzel:** hält die Pflanze fest, nimmt Wasser und Mineralstoffe auf.\n**Sprossachse (Stängel):** trägt Blätter und Blüten, leitet Wasser und Nährstoffe.\n**Blätter:** stellen mit Sonnenlicht Nährstoffe her und verdunsten Wasser.\n**Blüte:** dient der Fortpflanzung.', ''],
@@ -237,92 +269,153 @@ export const BIO = {
         ] },
       ],
     },
-    // ------------------------------------------------------------------
-    {
-      id: 'samen', title: 'Von der Blüte zur Frucht', emoji: '🍒', sub: 'Bestäubung, Befruchtung, Samen und Keimung',
-      sayWho: 'sheep', say: 'Ich hab einen Kirschkern verschluckt. Wächst jetzt ein Baum in meinem Bauch? Mäh!',
-      explain: [
-        ['Bestäubung', 'Pollen gelangt auf die **Narbe** einer Blüte derselben Art.\n**Insektenblütler** (Kirsche, Salbei): bunte, duftende Blüten mit Nektar.\n**Windblütler** (Hasel, Gräser): unscheinbare Blüten, sehr viel leichter Pollen.', ''],
-        ['Befruchtung', 'Aus dem Pollenkorn wächst ein **Pollenschlauch** durch den Griffel bis zur Samenanlage. Dort verschmilzt eine Spermienzelle mit der **Eizelle**. Erst das ist die Befruchtung!', 'Bestäubung ≠ Befruchtung'],
-        ['Frucht und Samen', 'Nach der Befruchtung welken die Blütenblätter. Aus dem **Fruchtknoten** wird die **Frucht**, aus der Samenanlage der **Samen**. Samen werden verbreitet durch Wind (Löwenzahn), Tiere (Klette, Kirsche), Wasser (Kokosnuss) oder die Pflanze selbst (Springkraut).', ''],
-        ['Keimung', 'Ein Samen enthält einen **Keimling** und Vorratsstoffe. Zum Keimen braucht er **Wasser, Wärme und Sauerstoff**. Er quillt auf, die Schale platzt, erst wächst die Keimwurzel, dann der Spross mit den ersten Blättern.', ''],
-      ],
-      facts: ['Der Klettverschluss wurde von der Klette abgeschaut: Ein Schweizer Ingenieur untersuchte die Früchte, die im Fell seines Hundes hingen.', 'Für ein Glas Honig fliegen Bienen etwa dreimal um die Erde und besuchen dabei Millionen Blüten.', 'Die Samen der Seychellenpalme wiegen bis zu 25 kg – die schwersten Samen der Welt.'],
-      task: ['Kresse-Labor', 'Säe Kresse auf feuchte Watte in **drei Schälchen**: 1. hell und feucht, 2. dunkel (im Schrank) und feucht, 3. hell und **trocken**. Beobachte fünf Tage lang und notiere jeden Tag, was du siehst. Was braucht ein Samen zum Keimen – und was braucht die Pflanze danach?'],
-      levels: [
-        { title: 'Bienen-Post', emoji: '🐝', questions: [
-          order('Von der Blüte zur Kirsche – ordne die Schritte.', ['Bestäubung', 'Pollenschlauch wächst zur Samenanlage', 'Befruchtung', 'Blütenblätter fallen ab', 'Frucht reift'], 'Erst Bestäubung, dann Befruchtung – das sind zwei verschiedene Dinge.'),
-          mc('Was passiert bei der **Bestäubung**?', ['Pollen gelangt auf die Narbe', 'Der Samen keimt', 'Die Frucht fällt vom Baum', 'Die Blüte öffnet sich'], 'Meist erledigen das Insekten oder der Wind.'),
-          mc('Aus welchem Blütenteil entsteht die Kirsche?', ['Aus dem Fruchtknoten', 'Aus den Kronblättern', 'Aus den Staubblättern', 'Aus dem Kelch'], 'Der Kirschkern mit dem Samen entsteht aus der Samenanlage im Fruchtknoten.'),
-          sort('Wer bestäubt?', ['Wind', 'Insekten'], [['Hasel', 0], ['Kirsche', 1], ['Gräser', 0], ['Wiesensalbei', 1], ['Birke', 0], ['Apfel', 1]], 'Windblütler brauchen keine bunten Blüten – dafür riesige Mengen Pollen. Das merken alle mit Heuschnupfen!'),
-          match('Wie reisen diese Samen und Früchte?', [['Löwenzahn', 'mit dem Wind (Schirmflieger)'], ['Klette', 'im Fell von Tieren'], ['Kirsche', 'Vögel fressen die Frucht'], ['Springkraut', 'schleudert die Samen selbst weg'], ['Kokosnuss', 'schwimmt übers Meer']]),
-          mc('Was braucht ein Samen zum Keimen?', ['Wasser, Wärme und Sauerstoff', 'Erde, Dünger und Licht', 'Nur Licht', 'Kälte und Dunkelheit'], 'Erde braucht er nicht unbedingt – Kresse keimt sogar auf Watte. Licht braucht die Pflanze erst später zum Wachsen.'),
-          tf('Bienen bestäuben Blüten mit Absicht.', false, 'Sie wollen nur Nektar und Pollen sammeln. Dabei bleibt Pollen in ihrem Pelz hängen und landet auf der nächsten Blüte.'),
-          word('Diesen süßen Saft sammeln Bienen in Blüten:', 'NEKTAR'),
-        ] },
-        { title: 'Keim-Experte', emoji: '🌱', questions: [
-          order('Eine Bohne keimt – ordne die Schritte.', ['Samen nimmt Wasser auf und quillt', 'Samenschale platzt', 'Keimwurzel wächst nach unten', 'Spross wächst nach oben', 'Erste Laubblätter entfalten sich'], 'Zuerst die Wurzel: So kann der Keimling sofort Wasser aufnehmen.'),
-          mc('Was ist der Unterschied zwischen Bestäubung und Befruchtung?', ['Bestäubung: Pollen kommt auf die Narbe. Befruchtung: Spermienzelle und Eizelle verschmelzen.', 'Es gibt keinen – beides bedeutet dasselbe.', 'Bestäubung passiert im Samen, Befruchtung in der Wurzel.', 'Befruchtung kommt zuerst, dann die Bestäubung.'], 'Zwischen beiden liegt der Weg des Pollenschlauchs durch den Griffel.'),
-          mc('Was steckt in einem Bohnensamen?', ['Ein Keimling und Vorratsstoffe, umhüllt von der Samenschale', 'Nur Wasser', 'Eine winzige Blüte', 'Erde und Dünger'], 'Die dicken Keimblätter sind das „Pausenbrot“ für den Keimling.'),
-          mc('Warum bilden Windblütler so riesige Mengen Pollen?', ['Weil nur wenige Pollenkörner zufällig auf einer Narbe landen', 'Um Insekten zu füttern', 'Weil sie so groß sind', 'Um sich vor Regen zu schützen'], 'Der Wind verteilt den Pollen ungezielt in alle Richtungen.'),
-          mc('Erdbeerpflanzen können sich auch ohne Samen vermehren. Wie?', ['Durch Ausläufer, an denen neue Pflänzchen wachsen', 'Durch Sporen', 'Durch Teilung der Früchte', 'Gar nicht'], 'Das nennt man ungeschlechtliche Vermehrung. Kartoffeln machen es mit Knollen.'),
-          tf('Aus jeder Blüte wird eine Frucht.', false, 'Nur wenn die Blüte bestäubt **und** befruchtet wurde. Sonst fällt sie einfach ab.'),
-          mc('Welche Pflanze war das Vorbild für den Klettverschluss?', ['Die Klette', 'Der Löwenzahn', 'Die Brennnessel', 'Der Efeu'], 'Ihre Früchte haben winzige Haken. Von der Natur abgeschaute Technik nennt man **Bionik**.'),
-          mc('Warum ist es für Pflanzen gut, wenn ihre Samen weit weg getragen werden?', ['Die jungen Pflanzen nehmen der Mutterpflanze nicht Licht, Wasser und Platz weg', 'Weit weg ist es wärmer', 'Die Samen keimen nur nach einer Reise', 'Damit Tiere sie nicht finden'], 'Außerdem kann die Art so neue Lebensräume besiedeln.'),
-          tf('Flocke hat einen Kirschkern verschluckt. In ihrem Bauch wächst jetzt ein Kirschbaum.', false, 'Keine Sorge, Flocke! Der Kern wandert einfach durch den Darm. So verbreiten Vögel übrigens Kirschen: Kern raus – weit weg vom Baum.'),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'winter', title: 'Tiere im Winter', emoji: '❄️', sub: 'Winterschlaf, Winterruhe, Kältestarre, Vogelzug',
-      sayWho: 'elara', say: 'Kein Futter, eisige Kälte – und trotzdem überleben die Tiere den Winter. Jedes hat seinen eigenen Trick!',
-      explain: [
-        ['Winterschlaf', 'Igel, Fledermaus, Murmeltier und Siebenschläfer verschlafen den Winter. Körpertemperatur, Herzschlag und Atmung sinken stark. Sie leben von ihrem **Fettpolster**.', 'Igel: Herz schlägt statt rund 200-mal nur noch etwa 8-mal pro Minute.'],
-        ['Winterruhe', 'Eichhörnchen, Dachs und Braunbär ruhen viel, wachen aber öfter auf und fressen (z. B. ihre Vorräte). Die Körpertemperatur sinkt kaum.', ''],
-        ['Kältestarre', 'Wechselwarme Tiere wie Frösche, Eidechsen, Schnecken und Insekten werden mit der Umgebung kalt und **starr**. Sie können sich nicht selbst aufwärmen.', ''],
-        ['Aktiv bleiben oder wegfliegen', '**Winteraktive** Tiere (Reh, Fuchs, Hase) bekommen ein dichtes Winterfell.\n**Zugvögel** (Storch, Schwalbe, Kuckuck) fliegen in den Süden, weil sie hier keine Nahrung finden. **Standvögel** (Meise, Spatz, Specht) bleiben.', ''],
-      ],
-      facts: ['Der Siebenschläfer schläft nicht sieben, sondern oft sogar acht Monate im Jahr.', 'Die Küstenseeschwalbe fliegt jedes Jahr von der Arktis in die Antarktis und zurück – rund 70 000 km.', 'Manche Frösche können teilweise einfrieren und tauen im Frühling einfach wieder auf.'],
-      task: ['Winter-Hotel', 'Hilf den Tieren: Lass im Garten einen **Laubhaufen** für Igel liegen oder richte mit einem Erwachsenen eine Futterstelle für Vögel ein. Beobachte eine Woche lang, wer zu Besuch kommt, und führe eine Strichliste.'],
-      levels: [
-        { title: 'Schlafmützen', emoji: '😴', questions: [
-          sort('Wie überwintert das Tier?', ['Winterschlaf', 'Winterruhe', 'Kältestarre'], [['Igel', 0], ['Eichhörnchen', 1], ['Grasfrosch', 2], ['Fledermaus', 0], ['Dachs', 1], ['Zauneidechse', 2]], 'Winterschläfer schlafen fast durch, Winterruher wachen öfter auf, wechselwarme Tiere erstarren.'),
-          mc('Auf wie viel Grad sinkt die Körpertemperatur eines Igels im Winterschlaf?', ['Auf etwa 5 °C', 'Auf etwa 30 °C', 'Auf −10 °C', 'Sie bleibt bei 36 °C'], 'So spart der Igel enorm viel Energie.'),
-          sort('Zugvogel oder Standvogel?', ['Zugvogel', 'Standvogel'], [['Weißstorch', 0], ['Kohlmeise', 1], ['Rauchschwalbe', 0], ['Haussperling', 1], ['Kuckuck', 0], ['Buntspecht', 1]], 'Zugvögel fressen meist Insekten oder andere Tiere, die es im Winter kaum gibt.'),
-          mc('Wovon lebt der Igel während des Winterschlafs?', ['Von seinem Fettpolster', 'Von Vorräten im Nest', 'Von Schnee', 'Er braucht keine Energie'], 'Deshalb muss er sich im Herbst richtig dick fressen – mindestens 500 g sollte er wiegen.'),
-          mc('Wie bereitet sich das Eichhörnchen auf den Winter vor?', ['Es versteckt Nüsse und Samen als Vorrat', 'Es fliegt in den Süden', 'Es gräbt sich im Schlamm ein', 'Es wirft sein Fell ab'], 'Manche Verstecke vergisst es – daraus wachsen neue Bäume.'),
-          tf('Tiere in Kältestarre können sich bei Frost nicht selbst aufwärmen.', true, 'Darum suchen sie sich vorher frostsichere Verstecke: im Schlamm, unter Laub oder in Erdlöchern.'),
-          mc('Warum darf man einen Igel im Winterschlaf nicht wecken?', ['Das Aufwachen kostet ihn sehr viel Energie', 'Er wird dann aggressiv', 'Er findet sein Nest nicht wieder', 'Er bekommt Schnupfen'], 'Wacht er zu oft auf, reicht sein Fettvorrat nicht bis zum Frühling.'),
-          word('Der Storch fliegt im Herbst in den Süden. Er ist ein …', 'ZUGVOGEL'),
-        ] },
-        { title: 'Winter-Profi', emoji: '🧣', questions: [
-          mc('Wie oft schlägt das Herz eines Igels im Winterschlaf ungefähr?', ['Etwa 8-mal pro Minute', 'Etwa 200-mal pro Minute', 'Etwa 80-mal pro Minute', 'Gar nicht'], 'Wach sind es rund 200 Schläge. Auch die Atmung wird extrem langsam.'),
-          mc('Warum hält ein Winterfell so gut warm?', ['Zwischen den dichten Haaren ist viel Luft, und Luft isoliert', 'Die Haare erzeugen Wärme', 'Es ist dunkler', 'Es ist wasserdicht'], 'Nach dem gleichen Prinzip wärmt deine Daunenjacke.'),
-          mc('Wie finden Zugvögel ihren Weg?', ['Mit Sonne, Sternen und dem Magnetfeld der Erde', 'Mit dem Geruchssinn allein', 'Sie folgen den Flugzeugen', 'Gar nicht – sie fliegen zufällig'], 'Viele Vögel haben einen eingebauten Kompass. Jungvögel lernen außerdem von den Älteren.'),
-          mc('Wo verbringen unsere Weißstörche den Winter?', ['In Afrika oder Spanien', 'In Norwegen', 'Am Nordpol', 'In Australien'], 'Manche Störche bleiben inzwischen in Spanien oder sogar hier, weil sie genug Futter finden.'),
-          match('Welcher Winter-Trick gehört zu welchem Tier?', [['Reh', 'dichtes Winterfell'], ['Rauchschwalbe', 'Flug nach Afrika'], ['Murmeltier', 'Winterschlaf im Bau'], ['Zitronenfalter', 'Kältestarre mit Frostschutzmittel im Körper']]),
-          tf('Der Braunbär hält einen echten Winterschlaf.', false, 'Er hält **Winterruhe**: Seine Körpertemperatur sinkt nur wenig, und er kann schnell aufwachen. Die Bärin bekommt in dieser Zeit sogar ihre Jungen.'),
-          mc('Warum können Schwalben bei uns nicht überwintern?', ['Es gibt keine fliegenden Insekten als Nahrung', 'Ihre Federn frieren ein', 'Die Nächte sind zu lang', 'Ihre Nester schneien zu'], 'Körnerfresser wie Spatzen finden dagegen auch im Winter etwas.'),
-          mc('Hermelin und Schneehase bekommen im Winter ein weißes Fell. Wozu?', ['Zur Tarnung im Schnee', 'Weiß ist wärmer', 'Damit Artgenossen sie besser sehen', 'Aus Altersgründen'], 'Im Sommer sind sie braun – auch das ist Tarnung.'),
-          mc('Wie kannst du Igeln im Garten beim Überwintern helfen?', ['Laub- und Reisighaufen liegen lassen', 'Milch hinstellen', 'Sie ins warme Haus holen', 'Den Rasen ganz kurz mähen'], 'Milch vertragen Igel übrigens nicht – sie bekommen davon Durchfall.'),
-          order('Das Igel-Jahr – ordne von Frühling bis Winter.', ['Aufwachen und Futter suchen', 'Junge bekommen', 'Fettpolster anfressen', 'Nest aus Laub bauen', 'Winterschlaf']),
-        ] },
-      ],
-    },
-    // ------------------------------------------------------------------
-    {
-      id: 'insekten', title: 'Insekten & Honigbiene', emoji: '🐝', sub: 'Sechs Beine, drei Körperteile, ein ganzer Staat',
-      sayWho: 'sheep', say: 'Eine Spinne ist ein Insekt mit zwei Extra-Beinen. Hab ich recht? Mäh?',
-      explain: [
-        ['Bauplan der Insekten', 'Der Körper hat **drei Abschnitte**: Kopf (mit Fühlern und Facettenaugen), Brust (mit **sechs Beinen** und meist vier Flügeln) und Hinterleib. Statt Knochen haben Insekten einen Panzer aus **Chitin** (Außenskelett). Sie atmen durch feine Röhren, die **Tracheen**.', 'Spinnen haben acht Beine – sie sind keine Insekten!'],
-        ['Der Bienenstaat', 'In einem Volk leben eine **Königin** (legt bis zu 2 000 Eier am Tag), im Sommer bis zu 50 000 **Arbeiterinnen** und einige Hundert **Drohnen** (Männchen).', ''],
-        ['Berufe einer Arbeiterin', 'Eine Arbeiterin wechselt im Lauf ihres Lebens den Job: Putzbiene → Ammenbiene (füttert Larven) → Baubiene (baut Waben aus Wachs) → Wächterin → Sammelbiene.', ''],
-        ['Tanzsprache und Verwandlung', 'Mit dem **Schwänzeltanz** zeigt eine Biene den anderen, in welcher Richtung und Entfernung es Futter gibt.\nBienen, Käfer und Schmetterlinge machen eine **vollständige Metamorphose**: Ei → Larve → Puppe → fertiges Insekt.', ''],
-      ],
-      facts: ['Eine Biene schlägt etwa 200-mal pro Sekunde mit den Flügeln – daher das Summen.', 'Es gibt mehr Insektenarten als alle anderen Tierarten zusammen: rund eine Million sind bekannt.', 'Ameisen können ein Vielfaches ihres eigenen Körpergewichts tragen.'],
-      task: ['Insekten-Safari', 'Geh mit einer Becherlupe (oder einem Glas) auf die Suche. Finde **drei verschiedene Krabbeltiere**, zähle die Beine und entscheide: Insekt oder nicht? Zeichne dein Lieblingstier und lass alle Tiere danach wieder frei.'],
-      levels: [
+  // ------------------------------------------------------------------
+  {
+    id: 'wiese', chapter: '6.4', title: 'Lebensraum Wiese', emoji: '🌼', sub: 'Mahd, Fett- und Magerwiese, Weide, Überlebenstricks',
+    sayWho: 'alpaca', say: 'Eine Wiese wird mehrmals im Jahr gemäht – und trotzdem wächst sie immer wieder. Welche Tricks haben die Pflanzen?',
+    explain: [
+      ['Warum wird gemäht?', 'Eine Wiese wird ein- oder mehrmals im Jahr **gemäht** (die **Mahd**) – zum Beispiel für Heu. Ohne Mahd würden dort Büsche und Sträucher wachsen und später ein Wald.', ''],
+      ['Die Wiese im Jahreslauf', '**Frühjahr:** gelb von **Löwenzahn** und **Hahnenfuß** – sie bilden schon vor der ersten Mahd Samen.\n**Sommer:** weiß von **Doldengewächsen** wie Wiesenkerbel und Wiesen-Bärenklau; die Gräser blühen.\n**Herbst:** nach der zweiten Mahd grün, kaum Blüten.', ''],
+      ['Überlebenstricks bei der Mahd', '**Blattrosette:** Blätter liegen dicht am Boden – die Mähmaschine schneidet darüber (Löwenzahn, Spitzwegerich, Schlüsselblume).\n**Ausläufer:** am Boden kriechende Triebe mit Wurzeln an den Knoten (Kriechender Günsel, Weißklee).\n**Knoten:** Gräser wachsen aus den unteren Knoten und vom Blattgrund nach.\n**Schnelles Wachstum** (Wiesenkerbel) und passende **Blütezeit**.', ''],
+      ['Fettwiese und Magerwiese', '**Fettwiese:** stark gedüngt, wächst schnell, wird oft gemäht → viel Gras (etwa 12 t/ha), aber nur wenige Arten.\n**Magerwiese:** nicht gedüngt, nur einmal im Sommer gemäht → wenig Ertrag (etwa 4 t/ha), aber sehr viele Arten (etwa 35).\nViele Pflanzenarten → viele Insekten → viele Vögel und Spinnen: Magerwiesen sind **schützenswert**.', ''],
+      ['Weide', 'Auf einer **Weide** fressen Kühe, Pferde oder Schafe. Dort haben Pflanzen Vorteile, die **Tritt** und **Verbiss** vertragen, und Pflanzen mit **Stacheln** (Disteln) oder **ungenießbare** (Sauerampfer), weil das Vieh sie stehen lässt.', ''],
+    ],
+    facts: ['Auf einer artenreichen Magerwiese können auf einem Quadratmeter über 50 verschiedene Pflanzenarten wachsen.', 'Der Löwenzahn bildet aus einer einzigen Pusteblume rund 200 Flugfrüchte.'],
+    task: ['Wiesen-Fotobuch', 'Such dir in der Nähe eine Wiese und fotografiere sie mehrmals im Frühling und Sommer (z. B. alle zwei Wochen) immer von der gleichen Stelle. Welche Farben dominieren wann? Wann wurde gemäht? Mach daraus ein kleines Fotobuch.'],
+    levels: [
+      { title: 'Wiesen-Kenner', emoji: '🌾', questions: [
+        mc('Was bedeutet **Mahd**?', ['Das Mähen der Wiese', 'Das Düngen der Wiese', 'Das Abweiden durch Kühe', 'Das Blühen im Frühling'], 'Das gemähte Gras wird zum Beispiel als Heu getrocknet.'),
+        mc('Was würde auf einer Wiese passieren, die nie gemäht wird?', ['Es würden Büsche, Sträucher und später Bäume wachsen', 'Sie würde zur Wüste', 'Es würde nichts passieren', 'Sie würde zu einem See'], 'Erst das Mähen hält die Wiese offen.'),
+        match('Welche Farbe hat die Wiese wann – und warum?', [['Frühjahr: gelb', 'Löwenzahn und Hahnenfuß blühen'], ['Sommer: weiß', 'Doldengewächse wie Wiesenkerbel blühen'], ['Herbst: grün', 'kaum Blüten, nur Blätter']]),
+        sort('Welcher Überlebenstrick bei der Mahd?', ['Blattrosette', 'Ausläufer', 'schnelles Wachstum'], [['Löwenzahn', 0], ['Spitzwegerich', 0], ['Kriechender Günsel', 1], ['Weißklee', 1], ['Wiesenkerbel', 2], ['Schlüsselblume', 0]], 'Rosetten liegen dicht am Boden, Ausläufer kriechen und wurzeln an den Knoten.'),
+        mc('Warum überleben Gräser das häufige Mähen so gut?', ['Ihre Blätter wachsen vom Grund aus nach', 'Sie haben Stacheln', 'Sie blühen erst im Winter', 'Sie haben keine Blätter'], 'Darum entsteht bei häufigem Mähen ein Rasen.'),
+        mc('Was ist ein **Ausläufer**?', ['Ein am Boden kriechender Trieb, an dem neue Pflanzen wurzeln', 'Eine Wurzel, die tief in den Boden geht', 'Eine besonders lange Blüte', 'Ein Samen mit Fallschirm'], 'Wird er abgetrennt, lebt die neue Pflanze selbstständig weiter.'),
+        tf('Der Löwenzahn bildet schon vor der ersten Mahd reife Samen.', true, 'So kann er sich vermehren, bevor die Wiese gemäht wird.'),
+        word('Blätter, die dicht am Boden in einem Kreis liegen:', 'ROSETTE'),
+        mc('Warum hat der Wiesenkerbel gute Überlebenschancen?', ['Er wächst sehr schnell und blüht zwischen erster und zweiter Mahd', 'Er hat Dornen', 'Er wächst unter der Erde', 'Kühe mögen ihn nicht'], 'So schafft er es trotz Mahd, Samen zu bilden.'),
+      ] },
+      { title: 'Fettwiese, Magerwiese, Weide', emoji: '🐮', questions: [
+        sort('Fettwiese oder Magerwiese?', ['Fettwiese', 'Magerwiese'], [['stark gedüngt', 0], ['viele Pflanzenarten', 1], ['hoher Ertrag an Gras', 0], ['nur einmal im Jahr gemäht', 1], ['wenige Blumen', 0], ['viele Insekten', 1]], 'Fettwiese: viel Gras, wenige Arten. Magerwiese: wenig Gras, große Vielfalt.'),
+        mc('Warum gibt es auf einer Fettwiese nur wenige Blumenarten?', ['Sie wird so oft gemäht, dass viele Blumen keine Samen bilden können', 'Der Dünger ist giftig für Blumen', 'Dort scheint keine Sonne', 'Die Kühe fressen alle Blumen'], 'Nur wenige, schnellwüchsige Arten vertragen das häufige Mähen.'),
+        mc('Warum leben auf Magerwiesen auch viele Tierarten?', ['Viele Pflanzenarten bieten vielen Insekten Nahrung – und die locken Vögel und Spinnen an', 'Weil es dort warm ist', 'Weil dort kein Mensch hinkommt', 'Weil das Gras so hoch ist'], 'Vielfalt an Pflanzen bringt Vielfalt an Tieren.'),
+        mc('Was unterscheidet eine **Weide** von einer Wiese?', ['Sie wird nicht gemäht, sondern vom Vieh abgefressen', 'Auf ihr wachsen Bäume', 'Sie wird nie genutzt', 'Sie wird mehrmals pro Woche gemäht'], 'Kühe, Pferde oder Schafe grasen dort.'),
+        mc('Warum findet man auf Weiden besonders viele **Disteln**?', ['Das Vieh frisst sie wegen der Stacheln nicht', 'Disteln brauchen viel Dünger', 'Disteln werden gepflanzt', 'Disteln blühen im Winter'], 'Auch ungenießbare Pflanzen wie Sauerampfer bleiben stehen.'),
+        mc('Mit welchen Schwierigkeiten müssen Pflanzen auf einer Weide zurechtkommen?', ['Tritt durch Hufe und Verbiss durch das Vieh', 'Überschwemmungen', 'Zu viel Schatten', 'Zu wenig Wind'], 'Robuste Pflanzen mit Rosetten oder Stacheln haben dort Vorteile.'),
+        tf('Eine Magerwiese bringt mehr Heu als eine Fettwiese.', false, 'Umgekehrt: Fettwiese etwa 12 t/ha, Magerwiese nur etwa 4 t/ha – aber die Magerwiese hat dreimal so viele Arten.'),
+        mc('Warum sind blumenreiche Wiesen schützenswert?', ['Sie sind Lebensraum für sehr viele Pflanzen- und Tierarten', 'Weil sie besonders viel Geld bringen', 'Weil dort Getreide wächst', 'Weil sie besonders groß sind'], 'Viele Wiesenblumen und Insekten sind selten geworden.'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
+  {
+    id: 'familien', chapter: '6', title: 'Pflanzenfamilien & Bestäuber', emoji: '🌺', sub: 'Kreuzblüten, Nelken, Lippenblüten, Korbblüten, Dolden, Rosen, Gräser',
+    sayWho: 'elara', say: 'Die Hummel passt genau in den Wiesensalbei, der Schmetterling in die Lichtnelke. Jede Blume hat ihren Lieblingsbesucher!',
+    explain: [
+      ['Pflanzenfamilien', 'Pflanzen mit ähnlichem Blütenbau werden zu **Familien** zusammengefasst. Die Ähnlichkeit kommt von der **Verwandtschaft**: Arten einer Familie stammen von einem gemeinsamen Vorfahren ab (Prinzip **Stammesgeschichte und Verwandtschaft**).', ''],
+      ['Kreuzblütengewächse', '**4 Kelchblätter, 4 Kronblätter** wie ein Kreuz, 2 kurze und 4 lange Staubblätter, Früchte als **Schoten**. Beispiele: Raps, Senf, Radieschen, alle Kohlsorten.', ''],
+      ['Nelkengewächse – Falterblumen', 'Gegabelt verzweigter Spross, **5 Kronblätter**, Kelchblätter zu einer **engen Röhre** verwachsen. Nur **Tagfalter** mit langem Saugrüssel kommen an den Nektar. Beispiel: **Rote Lichtnelke**, Kuckucks-Lichtnelke.', ''],
+      ['Lippenblütengewächse – Hummelblumen', 'Kelch und Krone zu einer Röhre verwachsen, mit **Ober- und Unterlippe**. Beim **Wiesensalbei** klappen die Staubblätter mit einem **Gelenk** herunter, wenn eine Hummel hineinkriecht, und pudern ihr Pollen auf den Rücken. Viele Gewürze: Salbei, Thymian, Basilikum, Pfefferminze.', 'Hummel und Salbei nützen sich gegenseitig: **Wechselwirkung**.'],
+      ['Doldengewächse – Fliegenblumen', 'Viele kleine weiße Blüten auf Stielen, die aus einem Punkt entspringen: eine **Dolde** („Schirm“). Bestäubt vor allem von **Fliegen** (z. B. Schwebfliegen) mit kurzem Rüssel. Beispiele: Wiesen-Bärenklau, Wiesenkerbel, Kümmel, Dill, Petersilie.', ''],
+      ['Korbblütengewächse – Bienenblumen', 'Der „Blütenkopf“ ist keine Blüte, sondern ein **Korb** aus vielen Einzelblüten: **Zungenblüten** und **Röhrenblüten**. Bestäubt vor allem von **Bienen**. Der Kelch wird beim Löwenzahn zum **Pappus** („Fallschirm“). Beispiele: Löwenzahn, Gänseblümchen, Sonnenblume, Margerite.', ''],
+      ['Rosengewächse und Süßgräser', '**Rosengewächse:** 5 Kelch-, 5 Kronblätter, **viele Staubblätter** – Kirsche, Apfel, Erdbeere.\n**Süßgräser:** runde, hohle **Halme** mit **Knoten**, schmale Blätter, unscheinbare Blüten mit **Spelzen** statt Kronblättern. Sie werden durch den **Wind** bestäubt – ihre Narben sind fedrig und klebrig. Pollen kann **Heuschnupfen** auslösen.', 'Glatthafer, Knäuelgras'],
+    ],
+    facts: ['In Deutschland gibt es mehrere Tausend Pflanzenarten.', 'Ein Grashalm ist gebaut wie ein Fernsehturm: hohl, mit Verstärkungen (Knoten) – sehr leicht und trotzdem stabil.', 'Die Hasel blüht schon im Februar – für Allergiker beginnt die Pollensaison mitten im Winter.'],
+    task: ['Bestimmungs-Spaziergang', 'Such auf einer Wiese oder im Garten **fünf blühende Pflanzen**. Zähle Kronblätter, schau dir die Blütenform an und ordne jede Pflanze einer Familie zu (Kreuzblüten, Nelken, Lippenblüten, Dolden, Korbblüten, Rosen, Gräser). Welche Insekten besuchen sie?'],
+    levels: [
+      { title: 'Blüte und Besucher', emoji: '🐝', questions: [
+        match('Welcher Besucher bestäubt welche Blume?', [['Rote Lichtnelke', 'Tagfalter'], ['Wiesensalbei', 'Hummel'], ['Wiesen-Bärenklau', 'Schwebfliege'], ['Löwenzahn', 'Biene'], ['Glatthafer', 'Wind']]),
+        mc('Warum kommen bei der Roten Lichtnelke nur Tagfalter an den Nektar?', ['Die Blütenröhre ist so eng und lang, dass nur ein langer Saugrüssel passt', 'Die Blüte ist nachts geschlossen', 'Bienen mögen kein Rosa', 'Der Nektar ist giftig für Bienen'], 'Wenn nur bestimmte Insekten kommen, wird die Blüte eher mit Pollen derselben Art bestäubt.'),
+        order('Der Klappmechanismus beim Wiesensalbei – ordne.', ['Hummel landet auf der Unterlippe', 'Sie steckt den Kopf in die Blütenröhre', 'Die Staubblätter klappen am Gelenk herunter', 'Pollen landet auf dem Rücken der Hummel', 'In der nächsten Blüte streift die Narbe den Pollen ab'], 'Das funktioniert nur, wenn das Insekt kräftig genug und passend groß ist.'),
+        mc('Was bedeutet das biologische Prinzip **Wechselwirkung** bei Hummel und Salbei?', ['Beide haben einen Vorteil: Hummel bekommt Nektar, Salbei wird bestäubt', 'Die Hummel schadet dem Salbei', 'Der Salbei frisst die Hummel', 'Beide haben nichts miteinander zu tun'], 'Lebewesen eines Lebensraums beeinflussen sich gegenseitig.'),
+        mc('Warum werden Dolden gerne von Fliegen besucht?', ['Der Nektar ist leicht erreichbar – Fliegen haben nur kurze Rüssel', 'Dolden riechen nach Fleisch', 'Fliegen mögen nur Weiß', 'Dolden haben besonders tiefe Röhren'], 'Viele kleine Blüten dicht nebeneinander bilden außerdem eine gute Landefläche.'),
+        mc('Was ist das Besondere am gelben „Blütenkopf“ des Löwenzahns?', ['Er besteht aus vielen kleinen Einzelblüten in einem Korb', 'Er ist eine einzige riesige Blüte', 'Er hat gar keine Blüten', 'Er wird durch den Wind bestäubt'], 'Deshalb heißt die Familie Korbblütengewächse.'),
+        mc('Wie heißt der „Fallschirm“ an der Löwenzahnfrucht?', ['Pappus', 'Pollen', 'Spelze', 'Dolde'], 'Er entsteht aus dem Kelch der Einzelblüte.'),
+        mc('Warum haben Gräser keine bunten Blüten?', ['Sie werden durch den Wind bestäubt und müssen keine Insekten anlocken', 'Sie haben keinen Platz dafür', 'Sie blühen nur nachts', 'Weil Kühe bunte Blüten fressen'], 'Bunte Kronblätter wären für Windbestäuber verschwendete Energie.'),
+        mc('Wozu sind die Narben der Grasblüten so stark gefiedert und klebrig?', ['Damit sie möglichst viel Pollen aus der Luft fangen', 'Damit Insekten landen können', 'Zum Schutz vor Regen', 'Zum Anlocken von Vögeln'], 'Wie ein Netz fangen sie die durch die Luft fliegenden Pollenkörner.'),
+        tf('Beim Wiesen-Bärenklau reifen die Staubblätter, bevor sich die Narben öffnen.', true, 'So wird Selbstbestäubung verhindert.'),
+      ] },
+      { title: 'Familien bestimmen', emoji: '🔎', questions: [
+        sort('Zu welcher Familie gehört die Pflanze?', ['Kreuzblüten', 'Lippenblüten', 'Korbblüten', 'Dolden'], [['Raps', 0], ['Salbei', 1], ['Gänseblümchen', 2], ['Wiesenkerbel', 3], ['Radieschen', 0], ['Thymian', 1], ['Sonnenblume', 2], ['Dill', 3]], 'Kreuzblüten: 4 Kronblätter im Kreuz. Lippenblüten: Ober- und Unterlippe. Korbblüten: viele Einzelblüten im Korb. Dolden: Schirme aus vielen kleinen Blüten.'),
+        match('Welches Merkmal gehört zu welcher Familie?', [['Kreuzblütengewächse', '4 Kronblätter wie ein Kreuz, Schoten'], ['Nelkengewächse', 'gegabelt verzweigter Spross, enge Kelchröhre'], ['Rosengewächse', '5 Kronblätter und sehr viele Staubblätter'], ['Lippenblütengewächse', 'Ober- und Unterlippe'], ['Süßgräser', 'hohle Halme mit Knoten']]),
+        mc('Welche Obstsorten gehören zu den **Rosengewächsen**?', ['Kirsche, Apfel, Erdbeere', 'Banane, Ananas, Kiwi', 'Tomate, Gurke, Paprika', 'Kartoffel, Möhre, Zwiebel'], 'Rosengewächse haben oft fünf Kronblätter und viele Staubblätter.'),
+        mc('Warum duften viele Lippenblütengewächse so stark?', ['Sie enthalten stark riechende Öle – darum sind viele Gewürze', 'Sie werden parfümiert', 'Sie wachsen im Mist', 'Sie blühen nur nachts'], 'Salbei, Thymian, Basilikum, Oregano, Pfefferminze.'),
+        mc('Woran erkennt man **Süßgräser**?', ['Runde, hohle Halme mit Knoten und schmalen Blättern', 'Bunte Kronblätter', 'Dornen am Stängel', 'Blattrosette und Pappus'], 'Die Blüten sitzen in Ährchen am Ende des Halms.'),
+        mc('Wie heißt eine Pflanzenfamilie, deren Blütenstand wie ein Schirm aussieht?', ['Doldengewächse', 'Korbblütengewächse', 'Kreuzblütengewächse', 'Nelkengewächse'], 'Alle Blütenstiele entspringen an einer Stelle des Stängels.'),
+        mc('Was bedeutet **Stammesgeschichte und Verwandtschaft**?', ['Arten einer Familie stammen von einem gemeinsamen Vorfahren ab', 'Alle Pflanzen sind gleich alt', 'Nur Tiere haben Vorfahren', 'Pflanzen wählen ihre Familie selbst'], 'Je jünger der gemeinsame Vorfahr, desto näher sind die Arten verwandt.'),
+        word('Der obere Teil einer Lippenblüte heißt …', 'OBERLIPPE'),
+        mc('Wann haben Menschen mit Gräserpollen-Allergie die größten Probleme?', ['Von Mai bis Juli', 'Im Dezember', 'Nur im Februar', 'Das ganze Jahr gleich'], 'Laut Pollenflugkalender blühen die Gräser vor allem im Frühsommer.'),
+        tf('Alle Pflanzen im Pollenflugkalender werden durch den Wind bestäubt.', true, 'Nur Windblütler geben so viel Pollen in die Luft ab – deshalb lösen sie Heuschnupfen aus.'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
+  {
+    id: 'samen', chapter: '6', title: 'Samen & Früchte unterwegs', emoji: '🍁', sub: 'Schraubenflieger, Klettfrucht, Lockfrucht & Co.',
+    sayWho: 'sheep', say: 'Mäh! Mir hängen lauter Kletten im Fell. Hab ich jetzt etwa der Pflanze geholfen?',
+    explain: [
+      ['Warum Samen reisen', 'Früchte enthalten **Samen**, aus denen neue Pflanzen wachsen. Werden sie weit weg getragen, nehmen die jungen Pflanzen der Mutterpflanze nicht Licht, Wasser und Platz weg – und die Art kann **neue Standorte erobern**.', ''],
+      ['Verbreitung durch den Wind', '**Flugfrüchte** sind leicht: **Schraubenflieger** drehen sich wie ein Propeller (Ahorn, Linde, Hainbuche). **Schirmflieger** schweben am Fallschirm (Löwenzahn). **Streufrüchte/Körnchenflieger** streuen winzige Samen aus, wenn Wind oder Tiere sie anstoßen (Klatschmohn).', ''],
+      ['Verbreitung durch Tiere', '**Lockfrüchte:** auffällig gefärbt, mit hartschaligen, unverdaulichen Samen – Vögel fressen sie und scheiden die Samen woanders aus (Schneeball, Eberesche, Kirsche).\n**Klettfrüchte:** Hakenhaare wie ein Klettverschluss – sie hängen an Fell, Gefieder oder Kleidung (Klette).\n**Ameisenfrüchte:** nahrhafte Anhängsel – Ameisen tragen sie in ihren Bau (Veilchen).\n**Versteckverbreitung:** Eichhörnchen verstecken Nüsse und vergessen manche (Haselnuss, Eichel).', ''],
+      ['Verbreitung durch Wasser und selbst', '**Schwimmsamen** treiben mit der Strömung (Seerose, Kokosnuss).\n**Schleuderfrüchte** springen blitzschnell auf und schleudern die Samen heraus (Springkraut, Storchschnabel).', ''],
+    ],
+    facts: ['Der Klettverschluss wurde der Klette abgeschaut – Technik nach dem Vorbild der Natur nennt man **Bionik**.', 'Das Springkraut schleudert seine Samen mehrere Meter weit – darum heißt es auch „Rühr-mich-nicht-an“.', 'Kokosnüsse können monatelang übers Meer treiben und dann an einer fremden Küste keimen.'],
+    task: ['Fantasie-Früchte', 'Erfinde für jeden Fruchttyp (Flugfrucht, Schleuderfrucht, Klettfrucht, Lockfrucht, Schwimmfrucht) eine **möglichst verrückte Fantasie-Frucht** und zeichne sie. Überlege vorher: Was muss die Frucht können, um weit zu reisen? Vergleiche danach mit echten Beispielen.'],
+    levels: [
+      { title: 'Fliegen, kletten, schleudern', emoji: '🪂', genCount: 4, gens: [gSeedSort, gSeedType, gSeedSort, gSeedType], questions: [
+        match('Welcher Fruchttyp funktioniert wie?', [['Schraubenflieger', 'dreht sich wie ein Propeller'], ['Schirmflieger', 'schwebt an einem Fallschirm'], ['Klettfrucht', 'Hakenhaare bleiben im Fell hängen'], ['Lockfrucht', 'bunt und lecker, wird gefressen'], ['Schleuderfrucht', 'springt auf und schleudert Samen weg']]),
+        mc('Warum enthalten **Lockfrüchte** hartschalige, unverdauliche Samen?', ['Damit die Samen den Darm der Tiere unbeschadet überstehen', 'Damit sie schwerer sind', 'Damit Tiere sie nicht fressen', 'Damit sie im Wasser schwimmen'], 'Mit dem Kot werden die Samen an einem anderen Ort ausgeschieden – sogar mit Dünger!'),
+        mc('Warum tragen Ameisen manche Samen in ihren Bau?', ['Die Samen haben ein nahrhaftes Anhängsel, das Ameisen fressen', 'Ameisen bauen damit ihr Nest', 'Die Samen leuchten', 'Ameisen pflanzen Gärten an'], 'Den Samen selbst lassen sie liegen – so wird er verbreitet.'),
+        mc('Warum ist es für eine Pflanze gut, wenn ihre Samen weit weg landen?', ['Die Jungpflanzen machen der Mutterpflanze nicht Licht, Wasser und Platz streitig', 'Weit weg ist es immer wärmer', 'Samen keimen nur nach langer Reise', 'Damit Tiere sie nicht finden'], 'Außerdem kann die Art neue Lebensräume besiedeln.'),
+        tf('Eichhörnchen helfen der Haselnuss, sich zu verbreiten.', true, 'Sie verstecken Nüsse als Wintervorrat – und vergessen viele davon.'),
+        word('Diese Frucht hat Hakenhaare wie ein Klettverschluss:', 'KLETTE'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
+  {
+    id: 'baeume', chapter: 'Wald', title: 'Bäume bestimmen', emoji: '🌳', sub: 'Blätter, Nadeln und Früchte – mit dem Bestimmungsschlüssel',
+    sayWho: 'alpaca', say: 'Gefingert, gefiedert, gelappt oder gesägt? Mit dem **Bestimmungsschlüssel** findest du jeden Baum!',
+    explain: [
+      ['Wie ein Bestimmungsschlüssel funktioniert', 'Man beantwortet Schritt für Schritt Fragen mit zwei (oder mehr) Möglichkeiten und folgt dem passenden Weg – bis man beim Namen ankommt.\n1. Ist das Blatt **zusammengesetzt** (aus vielen Blättchen) oder **einzeln**?\n2. Wie ist der **Rand**: ganzrandig, gesägt, gebuchtet oder gelappt?\n3. Welche **Form** hat das Blatt?', ''],
+      ['Zusammengesetzte Blätter', '**Gefingert** (wie eine Hand): Rosskastanie.\n**Gefiedert**, Blättchen fein gesägt: Eberesche.\n**Gefiedert**, unregelmäßig gesägt: Esche.', ''],
+      ['Einzelne Blätter', '**Ganzrandig/wellig**, Nerven gerade zum Rand: Rotbuche.\n**Gebuchtet:** Eiche (Rand glatt), Weißdorn (gezähnt).\n**Gelappt:** Spitzahorn (Lappen zipfelig, glatt), Bergahorn (Lappen gesägt).\n**Gesägt:** Linde (herzförmig), Birke (dreieckig, Stiel rund), Schwarzpappel (dreieckig, Stiel platt), Hainbuche (oval, doppelt gesägt), Zitterpappel (rundlich, Stiel seitlich platt), Vogelkirsche (Stiel mit roten Drüsen).', ''],
+      ['Nadelbäume', '**Fichte:** spitze Nadeln rundherum, Zapfen hängen.\n**Tanne:** flache Nadeln mit zwei weißen Streifen, Zapfen stehen aufrecht.\n**Kiefer:** lange Nadeln zu zweit.\n**Lärche:** Nadeln in Büscheln, wirft sie im Herbst ab.', 'Merkspruch: „Die Fichte sticht, die Tanne nicht.“'],
+      ['Bäume und ihre Früchte', 'Eiche → Eichel · Rotbuche → Bucheckern · Ahorn → Flügelfrüchte · Rosskastanie → stachelige Kapsel · Linde → Nüsschen am Flügelblatt · Eberesche → rote Vogelbeeren · Esche → Flügelfrüchte in Büscheln · Platane → Kugeln · Birke → Kätzchen mit Flügelnüsschen · Nadelbäume → Zapfen.', ''],
+    ],
+    facts: ['Eine große Buche hat rund 200 000 Blätter.', 'Eichen können über 1000 Jahre alt werden.', 'Die Lärche ist der einzige heimische Nadelbaum, der im Herbst seine Nadeln abwirft.'],
+    task: ['Blätter-Sammlung', 'Sammle draußen **mindestens acht verschiedene Blätter** (Wald, Park, Straße). Bestimme sie mit dem Bestimmungsschlüssel, presse sie zwischen Zeitungspapier in einem dicken Buch und klebe sie mit Name, Fundort und Datum ins Heft.'],
+    levels: [
+      { title: 'Blätter-Detektiv', emoji: '🍃', genCount: 5, gens: [gLeaf, gLeaf, gLaubNadel, gLeaf], questions: [
+        mc('Was ist der erste Schritt im Bestimmungsschlüssel für Laubbäume?', ['Ist das Blatt zusammengesetzt oder einzeln?', 'Wie groß ist der Baum?', 'Welche Farbe hat die Rinde?', 'Wie alt ist der Baum?'], 'Danach schaut man auf Blattrand und Blattform.'),
+        sort('Zusammengesetztes oder einzelnes Blatt?', ['zusammengesetzt', 'einzeln'], [['Rosskastanie', 0], ['Eberesche', 0], ['Esche', 0], ['Rotbuche', 1], ['Eiche', 1], ['Linde', 1]], 'Zusammengesetzte Blätter bestehen aus vielen Blättchen an einem Stiel.'),
+        match('Welcher Blattrand ist das?', [['ganzrandig', 'glatter Rand ohne Zähne'], ['gesägt', 'kleine spitze Zähne wie eine Säge'], ['gebuchtet', 'runde Einbuchtungen'], ['gelappt', 'tiefe Einschnitte in Lappen']]),
+        mc('Wie unterscheidet man Spitzahorn und Bergahorn?', ['Spitzahorn: zipfelige Lappen mit glattem Rand – Bergahorn: Lappen mit gesägtem Rand', 'Am Geruch', 'An der Blattfarbe', 'Gar nicht, es ist derselbe Baum'], 'Beide haben gelappte Blätter und Flügelfrüchte.'),
+        mc('Wie unterscheidet man Birke und Schwarzpappel?', ['Am Blattstiel: Birke rund, Schwarzpappel platt', 'An der Blattgröße', 'Die Birke hat Nadeln', 'Die Schwarzpappel hat gefiederte Blätter'], 'Beide haben dreieckige, gesägte Blätter.'),
+      ] },
+      { title: 'Früchte & Nadeln', emoji: '🌰', genCount: 5, gens: [gFruit, gFruitRev, gFruit, gLaubNadel], questions: [
+        match('Welche Nadeln gehören zu welchem Baum?', [['Fichte', 'spitz, rund um den Zweig'], ['Tanne', 'flach mit zwei weißen Streifen'], ['Kiefer', 'lang, immer zu zweit'], ['Lärche', 'in Büscheln, fallen im Herbst ab']], 'Merkspruch: „Die Fichte sticht, die Tanne nicht.“'),
+        tf('Tannenzapfen findet man oft ganz auf dem Waldboden.', false, 'Tannenzapfen stehen aufrecht und zerfallen am Baum. Was man findet, sind meist Fichtenzapfen!'),
+        mc('Welcher heimische Nadelbaum verliert im Herbst seine Nadeln?', ['Lärche', 'Fichte', 'Tanne', 'Kiefer'], 'Vorher färben sich die Nadeln goldgelb.'),
+        match('Welcher Baum hat welche Frucht?', [['Eiche', 'Eichel'], ['Rotbuche', 'Bucheckern'], ['Rosskastanie', 'Kastanie in stacheliger Kapsel'], ['Eberesche', 'rote Vogelbeeren']]),
+        mc('Welche Bäume haben Früchte, die wie ein Propeller fliegen?', ['Ahorn, Linde und Hainbuche', 'Eiche und Rotbuche', 'Rosskastanie und Eberesche', 'Fichte und Tanne'], 'Schraubenflieger drehen sich und fliegen dadurch länger.'),
+      ] },
+    ],
+  },
+  // ------------------------------------------------------------------
+  {
+    id: 'wirbellose', chapter: '7', title: 'Wirbellose Tiere', emoji: '🐝', sub: 'Insekten, Honigbiene, Spinnen, Schnecken, Würmer, Waldboden',
+    sayWho: 'sheep', say: 'Eine Spinne ist ein Insekt mit zwei Extra-Beinen. Hab ich recht? Mäh?',
+    explain: [
+      ['Insekten', 'Drei Körperabschnitte: **Kopf** (Fühler, Facettenaugen), **Brust** (6 Beine, meist 4 Flügel), **Hinterleib**. Außenskelett aus **Chitin**, Atmung durch **Tracheen**. Entwicklung: **vollständige Metamorphose** (Ei → Larve → Puppe → Insekt) oder unvollständig (ohne Puppe, z. B. Heuschrecke).', ''],
+      ['Die Honigbiene', '**Königin** (legt Eier), **Arbeiterinnen** (Putzbiene → Ammenbiene → Baubiene → Wächterin → Sammelbiene) und **Drohnen** (Männchen). Mit dem **Schwänzeltanz** zeigen Bienen Richtung und Entfernung von Futter. Auch Ameisen bilden Insektenstaaten.', ''],
+      ['Spinnentiere', '**Acht Beine**, nur **zwei Körperabschnitte** (Vorderkörper und Hinterleib), keine Fühler, keine Flügel. Die **Kreuzspinne** baut ein Radnetz und lähmt Beute mit Gift. Auch **Zecken** und Milben sind Spinnentiere – Zecken können Krankheiten übertragen.', ''],
+      ['Schnecken', 'Die **Weinbergschnecke** ist ein **Weichtier**: weicher Körper, Kalkgehäuse, kriecht auf einem Schleimfilm mit dem **Kriechfuß**. Augen sitzen auf den langen Fühlern, mit der **Raspelzunge** frisst sie Pflanzen. Sie ist **Zwitter**.', ''],
+      ['Regenwurm', 'Körper aus vielen **Ringen (Segmenten)** mit winzigen **Borsten**. Er atmet durch die feuchte **Haut**, frisst Erde und abgestorbene Blätter und **lockert und düngt** den Boden. Bei Regen kommt er nach oben, weil seine Gänge voll Wasser laufen.', ''],
+      ['Leben im Waldboden', 'Asseln, Tausendfüßer, Springschwänze, Regenwürmer und Milben zersetzen Laub zu **Humus**. Ohne sie würde der Wald im eigenen Laub ersticken. **Asseln** sind Krebstiere und lieben es **dunkel und feucht**.', ''],
+    ],
+    facts: ['Eine Biene schlägt etwa 200-mal pro Sekunde mit den Flügeln – daher das Summen.', 'Auf einem Hektar Wiese leben bis zu 3 Millionen Regenwürmer.', 'Spinnenseide ist reißfester als ein gleich dicker Stahlfaden.'],
+    task: ['Asseln-Versuch', 'Leg in eine Schale eine **feuchte und eine trockene** Hälfte (Küchenpapier) und decke eine Seite ab, sodass sie **dunkel** ist. Setz ein paar Asseln in die Mitte und schau nach 10 Minuten: Wo sind sie? Lass sie danach wieder frei.'],
+    levels: [
         { title: 'Krabbel-Check', emoji: '🐞', questions: [
           mc('Wie viele Beine hat ein Insekt?', ['6', '8', '4', '10'], 'Sechs Beine – immer. Sie sitzen alle an der Brust.'),
           order('Ordne die Körperabschnitte eines Insekts von **vorne nach hinten**.', ['Kopf', 'Brust', 'Hinterleib'], 'Das Wort „Insekt“ kommt von „eingeschnitten“ – wegen der Kerben zwischen den Abschnitten.'),
@@ -346,7 +439,19 @@ export const BIO = {
           mc('Woran erkennt man eine **vollständige** Metamorphose?', ['Es gibt ein Puppenstadium', 'Die Larve sieht aus wie das erwachsene Tier', 'Das Tier häutet sich nie', 'Es gibt keine Eier'], 'Heuschrecken haben keine Puppe: Ihre Larven sehen schon aus wie kleine Heuschrecken (unvollständige Metamorphose).'),
           word('Aus diesem Stoff bauen Bienen ihre Waben:', 'WACHS'),
         ] },
-      ],
-    },
+      { title: 'Spinnen, Schnecken, Würmer', emoji: '🐌', questions: [
+        sort('Insekt, Spinnentier oder anderes?', ['Insekt', 'Spinnentier', 'weder noch'], [['Marienkäfer', 0], ['Kreuzspinne', 1], ['Zecke', 1], ['Weinbergschnecke', 2], ['Regenwurm', 2], ['Ameise', 0], ['Kellerassel', 2]], 'Insekten: 6 Beine. Spinnentiere: 8 Beine. Schnecken, Würmer und Asseln (Krebstiere) sind andere Gruppen der Wirbellosen.'),
+        match('Was gehört zu wem?', [['Kreuzspinne', 'Radnetz und Giftklauen'], ['Weinbergschnecke', 'Kalkgehäuse und Kriechfuß'], ['Regenwurm', 'Ringe mit Borsten'], ['Zecke', 'saugt Blut und kann Krankheiten übertragen']]),
+        mc('Wie viele Körperabschnitte hat eine Spinne?', ['2', '3', '4', '6'], 'Vorderkörper (mit Beinen) und Hinterleib (mit Spinnwarzen).'),
+        mc('Womit atmet der Regenwurm?', ['Durch seine feuchte Haut', 'Mit Lungen', 'Mit Kiemen', 'Mit Tracheen'], 'Darum muss seine Haut immer feucht sein.'),
+        mc('Warum ist der Regenwurm so wichtig für den Boden?', ['Er lockert und düngt den Boden', 'Er frisst schädliche Insekten', 'Er macht den Boden trocken', 'Er schützt die Wurzeln vor Kälte'], 'Seine Gänge lassen Luft und Wasser in den Boden; sein Kot ist bester Dünger.'),
+        mc('Wo sitzen die Augen der Weinbergschnecke?', ['An der Spitze der langen Fühler', 'Am Gehäuse', 'Am Kriechfuß', 'Sie hat keine Augen'], 'Bei Gefahr zieht sie die Fühler blitzschnell ein.'),
+        mc('Welche Bedingungen mögen Asseln?', ['Dunkel und feucht', 'Hell und trocken', 'Heiß und sonnig', 'Kalt und windig'], 'Asseln sind Krebstiere und trocknen an der Luft schnell aus.'),
+        mc('Was machen die Tiere im Waldboden mit dem Laub?', ['Sie zersetzen es zu Humus', 'Sie bauen daraus Nester', 'Sie lagern es für den Winter', 'Gar nichts'], 'So entsteht fruchtbare Erde für neue Pflanzen.'),
+        word('Ein Tier mit weichem Körper wie die Schnecke ist ein …', 'WEICHTIER'),
+        tf('Spinnen haben Fühler und Flügel.', false, 'Spinnen haben weder Fühler noch Flügel – dafür Kieferklauen und Spinnwarzen.'),
+      ] },
+    ],
+  },
   ],
 };
