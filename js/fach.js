@@ -5,16 +5,26 @@ import { talk } from './comic.js';
 import { runQuiz, fmt, esc, shuffle } from './quiz.js';
 import { MATHE, makeQuestions } from './mathe-data.js';
 import { BIO } from './bio-data.js';
+import { GEO } from './geo-data.js';
 
-export const FAECHER = { mathe: MATHE, bio: BIO };
+export const FAECHER = { mathe: MATHE, bio: BIO, geo: GEO };
+
+// Bezeichnungen je Fach (mit Standardwerten)
+const cheatName = (f) => f.cheatName || (f.id === 'bio' ? 'Forscher-Wissen' : 'Spickzettel');
+const taskName = (f) => f.taskName || 'Forscher-Auftrag';
+const taskEmoji = (f) => f.taskEmoji || '🔬';
 
 const LEVEL_SIZE = 8;
 const levelKey = (f, t, i) => `${f.id}/${t.id}/${i}`;
 const starStr = (n) => '⭐'.repeat(n) + '☆'.repeat(3 - n);
 
+// Level können feste Fragen, Zufalls-Generatoren oder beides haben
 function questionsFor(level, n = LEVEL_SIZE) {
-  if (level.gens) return makeQuestions(level, n);
-  return shuffle(level.questions).slice(0, n);
+  if (level.gens && !level.questions) return makeQuestions(level, n);
+  if (!level.gens) return shuffle(level.questions).slice(0, n);
+  const g = Math.min(n, level.genCount || 3);
+  const fixed = shuffle(level.questions).slice(0, n - g);
+  return shuffle([...makeQuestions(level, n - fixed.length), ...fixed]);
 }
 
 const topicStars = (f, t) => t.levels.reduce((s, _, i) => s + quizStars(levelKey(f, t, i)), 0);
@@ -66,7 +76,7 @@ export function renderFach(app, id, topicId, ctx) {
       <div class="stats">
         <div><b>⭐ ${st.stars}</b><span>von ${st.max} Sternen</span></div>
         <div><b>🗺️ ${f.topics.filter((t) => topicStars(f, t) > 0).length}/${f.topics.length}</b><span>Stationen besucht</span></div>
-        ${st.taskMax ? `<div><b>🔬 ${st.tasks}/${st.taskMax}</b><span>Forscher-Aufträge</span></div>` : `<div><b>🏆 ${f.topics.filter((t) => topicStars(f, t) === t.levels.length * 3).length}</b><span>Stationen gemeistert</span></div>`}
+        ${st.taskMax ? `<div><b>${taskEmoji(f)} ${st.tasks}/${st.taskMax}</b><span>${taskName(f).replace('Auftrag', 'Aufträge')}</span></div>` : `<div><b>🏆 ${f.topics.filter((t) => topicStars(f, t) === t.levels.length * 3).length}</b><span>Stationen gemeistert</span></div>`}
       </div>
       <div class="meter big"><span style="width:${st.percent}%"></span></div>
       ${up ? `<a class="btn primary big" href="#/quiz/${f.id}/${up.t.id}/${up.i}">▶️ Weiter: ${up.t.emoji} ${esc(up.t.levels[up.i].title)}</a>` : '<p class="center"><b>🏆 Alle Level geschafft – du bist ein Profi!</b></p>'}
@@ -82,14 +92,14 @@ export function renderFach(app, id, topicId, ctx) {
           <span class="station-no">${n + 1}</span>
           <span class="station-emoji">${t.emoji}</span>
           <span class="station-text"><b>${esc(t.title)}</b><small>${esc(t.sub)}</small></span>
-          <span class="station-stars">${s}/${max} ⭐${t.task && taskDone(`${f.id}/${t.id}`) ? ' · 🔬' : ''}</span>
+          <span class="station-stars">${s}/${max} ⭐${t.task && taskDone(`${f.id}/${t.id}`) ? ` · ${taskEmoji(f)}` : ''}</span>
           <span class="meter"><span style="width:${(s / max) * 100}%"></span></span>
         </a>`;
       }).join('')}
     </div>
-    <p class="credit">${id === 'bio'
+    <p class="credit">${f.credit || (id === 'bio'
     ? 'Biologie gehört in Baden-Württemberg in Klasse 5/6 zum Fach BNT. Die Themen orientieren sich am Bildungsplan Gymnasium (Klassen 5/6).'
-    : 'Die Themen orientieren sich am Bildungsplan Mathematik Gymnasium Baden-Württemberg (Klassen 5/6) und an der üblichen Reihenfolge in Klasse 6.'}</p>
+    : 'Die Themen orientieren sich am Bildungsplan Mathematik Gymnasium Baden-Württemberg (Klassen 5/6) und an der üblichen Reihenfolge in Klasse 6.')}</p>
   `;
   return undefined;
 }
@@ -117,13 +127,13 @@ function renderTopic(app, f, t, ctx) {
         <a class="level ${s ? 'played' : ''}" href="#/quiz/${f.id}/${t.id}/${i}">
           <span class="level-no">${i + 1}</span>
           <span class="level-emoji">${l.emoji}</span>
-          <span class="level-text"><b>${esc(l.title)}</b><small>${LEVEL_SIZE} Aufgaben${l.gens ? ' · jedes Mal neu' : ''}</small></span>
+          <span class="level-text"><b>${esc(l.title)}</b><small>${LEVEL_SIZE} Aufgaben${l.gens ? (l.questions ? ' · mit Zufallsaufgaben' : ' · jedes Mal neu') : ''}</small></span>
           <span class="level-stars">${starStr(s)}</span>
           <span class="level-go">${s ? 'Nochmal' : 'Start'} ▶</span>
         </a>`;
       }).join('')}
     </div>
-    <h2>📖 ${f.id === 'bio' ? 'Forscher-Wissen' : 'Spickzettel'}</h2>
+    <h2>📖 ${cheatName(f)}</h2>
     <div class="cheats">
       ${t.explain.map(([h, text, ex], i) => `
         <details class="cheat" ${i === 0 ? 'open' : ''}>
@@ -134,9 +144,9 @@ function renderTopic(app, f, t, ctx) {
     </div>
     ${t.task ? `
       <section class="box challenge">
-        <h3>🔬 Forscher-Auftrag: ${esc(t.task[0])}</h3>
+        <h3>${taskEmoji(f)} ${taskName(f)}: ${esc(t.task[0])}</h3>
         <p>${fmt(t.task[1])}</p>
-        <button class="btn big ${taskDone(taskId) ? 'got' : 'primary'}" id="task">${taskDone(taskId) ? '✅ Erledigt – Forscher-Abzeichen gesammelt' : '🙋 Hab ich gemacht!'}</button>
+        <button class="btn big ${taskDone(taskId) ? 'got' : 'primary'}" id="task">${taskDone(taskId) ? '✅ Erledigt – Abzeichen gesammelt' : '🙋 Hab ich gemacht!'}</button>
         <div id="taskMsg" aria-live="polite"></div>
       </section>` : ''}
     ${t.facts?.length ? `<div class="fact"><b>🤯 Wusstest du?</b> ${fmt(t.facts[0])}</div>` : ''}
@@ -149,8 +159,8 @@ function renderTopic(app, f, t, ctx) {
   btn?.addEventListener('click', () => {
     const now = toggleTask(taskId);
     btn.className = `btn big ${now ? 'got' : 'primary'}`;
-    btn.textContent = now ? '✅ Erledigt – Forscher-Abzeichen gesammelt' : '🙋 Hab ich gemacht!';
-    app.querySelector('#taskMsg').innerHTML = now ? '<div class="sticker-pop"><span>🔬</span><b>Forscher-Abzeichen!</b> +20 ⭐</div>' : '';
+    btn.textContent = now ? '✅ Erledigt – Abzeichen gesammelt' : '🙋 Hab ich gemacht!';
+    app.querySelector('#taskMsg').innerHTML = now ? `<div class="sticker-pop"><span>${taskEmoji(f)}</span><b>Neues Abzeichen!</b> +20 ⭐</div>` : '';
   });
   return undefined;
 }
@@ -165,9 +175,9 @@ function mixQuestions(f, n) {
   return out;
 }
 
-// Tages-Challenge: 3 × Mathe, 3 × Bio
+// Tages-Challenge: je 2 Fragen aus Mathe, Bio und Erdkunde
 export function dailyQuestions() {
-  return shuffle([...mixQuestions(MATHE, 3), ...mixQuestions(BIO, 3)]);
+  return shuffle(Object.values(FAECHER).flatMap((f) => mixQuestions(f, 2)));
 }
 
 export function renderQuiz(app, [a, b, c], ctx) {
@@ -219,7 +229,7 @@ export function renderQuiz(app, [a, b, c], ctx) {
       if (stars >= 2 && nextLevel) html += `<a class="btn primary big" href="#/quiz/${f.id}/${t.id}/${i + 1}">▶️ Nächstes Level: ${nextLevel.emoji} ${esc(nextLevel.title)}</a>`;
       else if (stars >= 2 && nextTopic) html += `<a class="btn primary big" href="#/fach/${f.id}/${nextTopic.id}">▶️ Nächste Station: ${nextTopic.emoji} ${esc(nextTopic.title)}</a>`;
       html += stars >= 2 ? '<button class="btn big" id="again">🔁 Noch eine Runde</button>' : againBtn;
-      if (stars < 2) html += `<a class="btn big" href="#/fach/${f.id}/${t.id}">📖 Zum ${f.id === 'bio' ? 'Forscher-Wissen' : 'Spickzettel'}</a>`;
+      if (stars < 2) html += `<a class="btn big" href="#/fach/${f.id}/${t.id}">📖 Zum ${cheatName(f)}</a>`;
       return {
         top: record ? `<div class="sticker-pop"><span>🏅</span><b>${before ? 'Neuer Rekord!' : 'Level geschafft!'}</b> ${starStr(stars)}</div>` : '',
         html,

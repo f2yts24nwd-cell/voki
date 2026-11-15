@@ -17,7 +17,7 @@ let lastMistakes = [];
 let updateReady = false;
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 7;
+const APP_VERSION = 8;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -187,6 +187,7 @@ function renderHub() {
   const lang = Object.fromEntries(Object.keys(LANGUAGES).map((code) => [code, langStats(code)]));
   const mathe = fachStats('mathe');
   const bio = fachStats('bio');
+  const geo = fachStats('geo');
   const learn = learnStats();
   const langCard = (code, color, example) => areaCard({
     href: `#/fach/${code}`, color, emoji: LANGUAGES[code].flag, title: LANGUAGES[code].name,
@@ -218,7 +219,7 @@ function renderHub() {
     <div class="today">
       ${dailyDone()
         ? '<div class="daily done"><span class="daily-emoji">✅</span><span><b>Tages-Challenge geschafft!</b><br><small>Morgen wartet eine neue auf dich.</small></span></div>'
-        : '<a class="daily" href="#/quiz/heute"><span class="daily-emoji">⚡</span><span><b>Tages-Challenge</b><br><small>6 Blitz-Fragen aus Mathe und Bio · +30 ⭐ Bonus</small></span><span class="daily-go">Los ▶</span></a>'}
+        : '<a class="daily" href="#/quiz/heute"><span class="daily-emoji">⚡</span><span><b>Tages-Challenge</b><br><small>6 Blitz-Fragen aus Mathe, Bio und Erdkunde · +30 ⭐ Bonus</small></span><span class="daily-go">Los ▶</span></a>'}
       ${todo}
     </div>
 
@@ -228,10 +229,11 @@ function renderHub() {
       ${langCard('fr', '#0e7490', 'bonjour !')}
     </div>
 
-    <h2>🔬 Mathe &amp; Natur</h2>
+    <h2>🔬 Mathe, Natur &amp; Welt</h2>
     <div class="areas">
       ${areaCard({ href: '#/fach/mathe', color: '#a21caf', emoji: '🔢', title: 'Mathe', sub: 'Zahlen-Expedition: Brüche, Winkel, Flächen, negative Zahlen …', meta: `${mathe.stars} von ${mathe.max} Sternen`, percent: mathe.percent })}
       ${areaCard({ href: '#/fach/bio', color: '#15803d', emoji: '🧬', title: 'Biologie', sub: 'Forscher-Camp: Tiere, Pflanzen und ihre Tricks', meta: `${bio.stars} von ${bio.max} Sternen · ${bio.tasks}/${bio.taskMax} Forscher-Aufträge`, percent: bio.percent })}
+      ${areaCard({ href: '#/fach/geo', color: '#1d4ed8', emoji: '🌍', title: 'Erdkunde', sub: 'Deutschland-Tour: Karten, Klima, Nordsee, Hafen und Harz', meta: `${geo.stars} von ${geo.max} Sternen · ${geo.tasks}/${geo.taskMax} Entdecker-Aufträge`, percent: geo.percent })}
     </div>
 
     <h2>🧠 Lernen lernen</h2>
@@ -861,7 +863,7 @@ function renderSettings() {
         <button class="btn danger" type="button" id="reset">Fortschritt zurücksetzen</button>
       </fieldset>
     </form>
-    <p class="muted small center">Voki · Sprachen, Mathe, Bio und Lernen lernen · Version ${APP_VERSION}</p>
+    <p class="muted small center">Voki · Sprachen, Mathe, Bio, Erdkunde und Lernen lernen · Version ${APP_VERSION}</p>
   `;
   const form = document.getElementById('form');
   form.addEventListener('change', () => {
