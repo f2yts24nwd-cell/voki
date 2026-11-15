@@ -46,6 +46,9 @@ export function fachStats(id) {
 
 // Das nächste Level, das noch keine 3 Sterne hat
 function nextUp(f) {
+  // Erst das Kapitel, das gerade im Unterricht dran ist
+  const cur = f.topics.find((t) => t.current);
+  if (cur) for (let i = 0; i < cur.levels.length; i++) if (quizStars(levelKey(f, cur, i)) < 2) return { t: cur, i };
   for (const t of f.topics) {
     for (let i = 0; i < t.levels.length; i++) {
       if (quizStars(levelKey(f, t, i)) < 2) return { t, i };
@@ -88,8 +91,9 @@ export function renderFach(app, id, topicId, ctx) {
         const s = topicStars(f, t);
         const max = t.levels.length * 3;
         return `
-        <a class="station ${s === max ? 'done' : ''}" href="#/fach/${f.id}/${t.id}">
-          <span class="station-no">${n + 1}</span>
+        <a class="station ${s === max ? 'done' : ''} ${t.current ? 'now' : ''}" href="#/fach/${f.id}/${t.id}">
+          <span class="station-no">${t.chapter || n + 1}</span>
+          ${t.current ? '<span class="station-now">📌 Gerade dran</span>' : ''}
           <span class="station-emoji">${t.emoji}</span>
           <span class="station-text"><b>${esc(t.title)}</b><small>${esc(t.sub)}</small></span>
           <span class="station-stars">${s}/${max} ⭐${t.task && taskDone(`${f.id}/${t.id}`) ? ` · ${taskEmoji(f)}` : ''}</span>
@@ -116,7 +120,7 @@ function renderTopic(app, f, t, ctx) {
     ${back(`#/fach/${f.id}`, `${f.emoji} ${esc(f.name)}`)}
     <section class="card-head" style="--c:var(--primary)">
       <span class="card-emoji">${t.emoji}</span>
-      <div><h2>${esc(t.title)}</h2><p>${esc(t.sub)}</p></div>
+      <div><h2>${t.chapter ? `Kapitel ${t.chapter}: ` : ''}${esc(t.title)}</h2><p>${esc(t.sub)}</p>${t.current ? '<p class="now-tag">📌 Gerade im Unterricht dran</p>' : ''}</div>
     </section>
     ${talk(t.sayWho || f.who, t.say, t.sayWho === 'sheep' ? 'thinking' : 'happy')}
     <h2>🎮 Level</h2>

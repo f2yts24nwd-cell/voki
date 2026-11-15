@@ -1063,3 +1063,9 @@ html, body { transition: background 0.2s; }
 /* ---------- Erdkunde: Karten ---------- */
 .fig-map { width: min(100%, 360px); max-height: 50vh; }
 .sort-item { flex: 1 1 180px; text-align: left; }
+
+/* Mathe: aktuelles Kapitel */
+.station.now { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25), var(--shadow); }
+.station-no { width: auto; min-width: 26px; padding: 0 6px; border-radius: 99px; }
+.station-now { position: absolute; top: -10px; right: 10px; background: #f59e0b; color: #fff; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
+.now-tag { margin-top: 4px !important; font-weight: 700; color: #b45309; }

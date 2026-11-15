@@ -17,7 +17,7 @@ let lastMistakes = [];
 let updateReady = false;
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -231,7 +231,7 @@ function renderHub() {
 
     <h2>🔬 Mathe, Natur &amp; Welt</h2>
     <div class="areas">
-      ${areaCard({ href: '#/fach/mathe', color: '#a21caf', emoji: '🔢', title: 'Mathe', sub: 'Zahlen-Expedition: Brüche, Winkel, Flächen, negative Zahlen …', meta: `${mathe.stars} von ${mathe.max} Sternen`, percent: mathe.percent })}
+      ${areaCard({ href: '#/fach/mathe', color: '#a21caf', emoji: '🔢', title: 'Mathe', sub: 'Zahlen-Expedition nach dem Lambacher Schweizer 6 – Kapitel I bis VII', meta: `${mathe.stars} von ${mathe.max} Sternen`, percent: mathe.percent })}
       ${areaCard({ href: '#/fach/bio', color: '#15803d', emoji: '🧬', title: 'Biologie', sub: 'Forscher-Camp: Tiere, Pflanzen und ihre Tricks', meta: `${bio.stars} von ${bio.max} Sternen · ${bio.tasks}/${bio.taskMax} Forscher-Aufträge`, percent: bio.percent })}
       ${areaCard({ href: '#/fach/geo', color: '#1d4ed8', emoji: '🌍', title: 'Erdkunde', sub: 'Deutschland-Tour: Karten, Klima, Nordsee, Hafen und Harz', meta: `${geo.stars} von ${geo.max} Sternen · ${geo.tasks}/${geo.taskMax} Entdecker-Aufträge`, percent: geo.percent })}
     </div>
