@@ -4,10 +4,11 @@ import { check, diff } from './check.js';
 import {
   store, save, allLists, getList, wordsOf, listStats, dueWords, isDue, progressOf, record,
   currentStreak, saveCustomList, deleteCustomList, parseWordLines, wordsToLines,
-  exportData, importData, resetProgress, MAX_BOX,
+  exportData, importData, resetProgress, MAX_BOX, dailyDone,
 } from './store.js';
 import { LANGUAGES } from './vocab.js';
-import { renderLernen, spellOfTheDay } from './lernen.js';
+import { renderLernen, spellOfTheDay, learnStats } from './lernen.js';
+import { FAECHER, fachStats, renderFach, renderQuiz } from './fach.js';
 
 const app = document.getElementById('app');
 let cleanup = () => {};
@@ -16,7 +17,7 @@ let lastMistakes = [];
 let updateReady = false;
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 5;
+const APP_VERSION = 9;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -57,7 +58,7 @@ function speak(text, lang = 'en-GB') {
 const langInfo = (lang) => LANGUAGES[lang] || LANGUAGES.en;
 const sayWord = (w) => speak(w.en, langInfo(w.lang).voice);
 
-// Farbe und Kopfzeile je Fach (Englisch / Französisch)
+// Farbe je Bereich: 'home' | 'en' | 'fr' | 'mathe' | 'bio' | 'learn'
 function setSubject(lang) {
   document.documentElement.dataset.subject = lang;
 }
@@ -84,13 +85,15 @@ const foreignWord = (w) => {
 const withGap = (text) => esc(text).replace(/_{2,}/g, '<span class="gap">&nbsp;</span>');
 
 function setTitle(t) {
-  document.title = t ? `${t} · Voki` : 'Voki – Vokabeln mit dem Stift';
+  document.title = t ? `${t} · Voki` : 'Voki – Lernen mit Köpfchen';
 }
 
 // ---------- Router ----------
 
+const inSession = () => /^#\/(ueben|quiz)/.test(location.hash);
+
 function route() {
-  if (updateReady && !location.hash.startsWith('#/ueben')) {
+  if (updateReady && !inSession()) {
     location.reload();
     return;
   }
@@ -98,49 +101,155 @@ function route() {
   cleanup = () => {};
   window.scrollTo(0, 0);
   const parts = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  const [page, a, b] = parts;
+  const [page, a, b, c] = parts;
+  const ctx = { setTitle, setSubject, speak, go };
   if (page === 'lernen') {
     setSubject('learn');
-    cleanup = renderLernen(app, [a, b], { tabs: subjectTabs, bindTabs, setTitle, speak });
+    cleanup = renderLernen(app, [a, b], ctx);
     return;
   }
+  if (page === 'fach' && FAECHER[a]) {
+    setSubject(a);
+    cleanup = renderFach(app, a, b, ctx) || (() => {});
+    return;
+  }
+  if (page === 'quiz') {
+    cleanup = renderQuiz(app, [a, b, c], ctx) || (() => {});
+    return;
+  }
+  if (page === 'fach' && LANGUAGES[a]) {
+    if (store.settings.subject !== a) {
+      store.settings.subject = a;
+      save();
+    }
+    setSubject(a);
+    return renderHome();
+  }
+  if (page === 'vokabeln') return go(`#/fach/${store.settings.subject}`);
   if (page === 'liste' && getList(a)) {
     setSubject(getList(a).lang);
     return renderList(getList(a));
   }
+  if (page === 'einstellungen') {
+    setSubject('home');
+    return renderSettings();
+  }
   setSubject(store.settings.subject);
   if (page === 'ueben') return renderPractice(a, b || 'lernen');
-  if (page === 'einstellungen') return renderSettings();
   if (page === 'neu') return renderEdit(null);
   if (page === 'bearbeiten' && getList(a) && !getList(a).builtin) return renderEdit(getList(a));
-  renderHome();
+  setSubject('home');
+  renderHub();
 }
 
 window.addEventListener('hashchange', route);
 
 // ---------- Startseite ----------
 
-// Reiter oben: Englisch, Französisch und die Lern-Werkstatt
-function subjectTabs(active) {
-  return `
-    <nav class="subjects" role="tablist">
-      ${Object.entries(LANGUAGES).map(([code, l]) => `
-        <button class="subject ${code === active ? 'active' : ''}" role="tab" aria-selected="${code === active}" data-subject="${code}">
-          <span class="flag">${l.flag}</span> <span class="sname">${l.name}</span>
-        </button>`).join('')}
-      <button class="subject ${active === 'learn' ? 'active' : ''}" role="tab" aria-selected="${active === 'learn'}" data-learn>
-        <span class="flag">🧠</span> <span class="sname">Lernen</span>
-      </button>
-    </nav>`;
+// Startseite: alle Bereiche auf einen Blick
+const RANKS = ['Neuling', 'Entdecker', 'Tüftler', 'Schlaukopf', 'Durchblicker', 'Profi', 'Ass', 'Meister', 'Großmeister', 'Legende'];
+const RANK_STEP = 200;
+
+function langStats(lang) {
+  let total = 0;
+  let mastered = 0;
+  let score = 0;
+  for (const l of allLists(lang)) {
+    const st = listStats(l);
+    total += st.total;
+    mastered += st.mastered;
+    score += st.percent * st.total;
+  }
+  return { total, mastered, percent: total ? Math.round(score / total) : 0, due: dueWords(lang).length };
 }
 
-function bindTabs() {
-  app.querySelectorAll('[data-subject]').forEach((b) => b.addEventListener('click', () => {
-    store.settings.subject = b.dataset.subject;
-    save();
-    go('#/');
-  }));
-  app.querySelector('[data-learn]')?.addEventListener('click', () => go('#/lernen'));
+function areaCard({ href, color, emoji, title, sub, meta, percent, badge }) {
+  return `
+    <a class="area" href="${href}" style="--c:${color}">
+      ${badge ? `<span class="area-badge">${badge}</span>` : ''}
+      <span class="area-emoji">${emoji}</span>
+      <span class="area-title">${title}</span>
+      <span class="area-sub">${sub}</span>
+      <span class="area-meta">${meta}</span>
+      <span class="meter"><span style="width:${percent}%"></span></span>
+    </a>`;
+}
+
+function renderHub() {
+  setTitle('');
+  const xp = store.stats.xp;
+  const rank = Math.min(RANKS.length - 1, Math.floor(xp / RANK_STEP));
+  const toNext = RANK_STEP - (xp % RANK_STEP);
+  const h = new Date().getHours();
+  const hello = h < 11 ? 'Guten Morgen' : h < 17 ? 'Hallo' : 'Guten Abend';
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const lang = Object.fromEntries(Object.keys(LANGUAGES).map((code) => [code, langStats(code)]));
+  const mathe = fachStats('mathe');
+  const bio = fachStats('bio');
+  const geo = fachStats('geo');
+  const learn = learnStats();
+  const langCard = (code, color, example) => areaCard({
+    href: `#/fach/${code}`, color, emoji: LANGUAGES[code].flag, title: LANGUAGES[code].name,
+    sub: `Vokabeln und Grammatik mit dem Stift schreiben – ${example}`,
+    meta: `${lang[code].mastered} von ${lang[code].total} Wörtern sicher`, percent: lang[code].percent,
+    badge: lang[code].due ? `🔁 ${lang[code].due} fällig` : '',
+  });
+  const todo = Object.keys(LANGUAGES).filter((code) => lang[code].due)
+    .map((code) => `<a class="btn big" href="#/ueben/_faellig-${code}/wiederholen">${LANGUAGES[code].flag} ${lang[code].due} ${lang[code].due === 1 ? 'Wort' : 'Wörter'} in ${LANGUAGES[code].name} wiederholen</a>`).join('');
+
+  app.innerHTML = `
+    <header class="top">
+      <h1>✏️ Voki</h1>
+      <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen">⚙️</a>
+    </header>
+    <section class="hero hub-hero">
+      <p class="hello">${hello}! 👋 <span>Was möchtest du heute lernen?</span></p>
+      <div class="stats">
+        <div><b>🔥 ${currentStreak()}</b><span>Tage in Folge</span></div>
+        <div><b>⭐ ${xp}</b><span>Punkte</span></div>
+        <div><b>🎖️ ${RANKS[rank]}</b><span>Stufe ${rank + 1}</span></div>
+      </div>
+      ${rank < RANKS.length - 1
+        ? `<div class="rank"><div class="meter big"><span style="width:${((xp % RANK_STEP) / RANK_STEP) * 100}%"></span></div><span class="muted small">Noch ${toNext} ⭐ bis „${RANKS[rank + 1]}“</span></div>`
+        : '<p class="muted small center">Höchste Stufe erreicht – legendär! 👑</p>'}
+    </section>
+
+    <h2>🎯 Heute für dich</h2>
+    <div class="today">
+      ${dailyDone()
+        ? '<div class="daily done"><span class="daily-emoji">✅</span><span><b>Tages-Challenge geschafft!</b><br><small>Morgen wartet eine neue auf dich.</small></span></div>'
+        : '<a class="daily" href="#/quiz/heute"><span class="daily-emoji">⚡</span><span><b>Tages-Challenge</b><br><small>6 Blitz-Fragen aus Mathe, Bio und Erdkunde · +30 ⭐ Bonus</small></span><span class="daily-go">Los ▶</span></a>'}
+      ${todo}
+    </div>
+
+    <h2>🗣️ Sprachen</h2>
+    <div class="areas">
+      ${langCard('en', '#4f46e5', 'hello!')}
+      ${langCard('fr', '#0e7490', 'bonjour !')}
+    </div>
+
+    <h2>🔬 Mathe, Natur &amp; Welt</h2>
+    <div class="areas">
+      ${areaCard({ href: '#/fach/mathe', color: '#a21caf', emoji: '🔢', title: 'Mathe', sub: 'Zahlen-Expedition nach dem Lambacher Schweizer 6 – Kapitel I bis VII', meta: `${mathe.stars} von ${mathe.max} Sternen`, percent: mathe.percent })}
+      ${areaCard({ href: '#/fach/bio', color: '#15803d', emoji: '🧬', title: 'Biologie', sub: 'Forscher-Camp: Tiere, Pflanzen und ihre Tricks', meta: `${bio.stars} von ${bio.max} Sternen · ${bio.tasks}/${bio.taskMax} Forscher-Aufträge`, percent: bio.percent })}
+      ${areaCard({ href: '#/fach/geo', color: '#1d4ed8', emoji: '🌍', title: 'Erdkunde', sub: 'Deutschland-Tour: Karten, Klima, Nordsee, Hafen und Harz', meta: `${geo.stars} von ${geo.max} Sternen · ${geo.tasks}/${geo.taskMax} Entdecker-Aufträge`, percent: geo.percent })}
+    </div>
+
+    <h2>🧠 Lernen lernen</h2>
+    <div class="areas one">
+      ${areaCard({ href: '#/lernen', color: '#c2410c', emoji: '🏝️', title: 'Lern-Werkstatt', sub: 'Lernmethoden mit Comics, Zaubersätze und Detektiv-Fälle', meta: `${learn.got} von ${learn.total} Stickern`, percent: (learn.got / learn.total) * 100 })}
+    </div>
+    <a class="spell-mini" href="#/lernen/insel/kopf">✨ <b>Zaubersatz des Tages:</b> „${esc(spellOfTheDay()[0])}“</a>
+    ${installPrompt ? '<button class="btn install" id="install">📲 Voki als App installieren</button>' : ''}
+    ${isIOS && !standalone ? '<p class="tip">📲 Tipp: Im Safari auf <b>Teilen</b> ➜ <b>Zum Home-Bildschirm</b> tippen, dann startet Voki wie eine App.</p>' : ''}
+  `;
+  document.getElementById('install')?.addEventListener('click', async () => {
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    route();
+  });
 }
 
 function listCard(list) {
@@ -155,23 +264,20 @@ function listCard(list) {
 }
 
 function renderHome() {
-  setTitle('');
   const subject = store.settings.subject;
   const L = langInfo(subject);
+  setTitle(L.name);
   const due = dueWords(subject);
   const lists = allLists(subject);
   const mastered = lists.reduce((n, l) => n + listStats(l).mastered, 0);
   const vocab = lists.filter((l) => l.builtin && l.type === 'vocab');
   const grammar = lists.filter((l) => l.builtin && l.type === 'grammar');
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-
   app.innerHTML = `
     <header class="top">
-      <h1>✏️ Voki</h1>
+      <a class="icon-btn" href="#/" aria-label="Zur Startseite">←</a>
+      <h1>${L.flag} ${L.name}</h1>
       <a class="icon-btn" href="#/einstellungen" aria-label="Einstellungen">⚙️</a>
     </header>
-    ${subjectTabs(subject)}
     <section class="hero">
       <div class="stats">
         <div><b>🔥 ${currentStreak()}</b><span>Tage in Folge</span></div>
@@ -182,9 +288,6 @@ function renderHome() {
         ? `<a class="btn primary big" href="#/ueben/_faellig-${subject}/wiederholen">${L.flag} Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
         : `<p class="muted center">In ${L.name} ist heute nichts zu wiederholen. Such dir ein Thema aus und lern neue Wörter! 🚀</p>`}
     </section>
-    <a class="spell-mini" href="#/lernen/insel/kopf">✨ <b>Zaubersatz des Tages:</b> „${esc(spellOfTheDay()[0])}“</a>
-    ${installPrompt ? '<button class="btn install" id="install">📲 Voki als App installieren</button>' : ''}
-    ${isIOS && !standalone ? '<p class="tip">📲 Tipp: Im Safari auf <b>Teilen</b> ➜ <b>Zum Home-Bildschirm</b> tippen, dann startet Voki wie eine App.</p>' : ''}
     <h2>📚 Vokabeln</h2>
     <div class="grid">${vocab.map(listCard).join('')}</div>
     <h2>🧩 Grammatik</h2>
@@ -196,13 +299,6 @@ function renderHome() {
       <a class="topic add" href="#/neu"><span class="topic-emoji">➕</span><span class="topic-title">Neue Liste</span></a>
     </div>
   `;
-  bindTabs();
-  document.getElementById('install')?.addEventListener('click', async () => {
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    installPrompt = null;
-    route();
-  });
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -224,7 +320,7 @@ function renderList(list) {
   }
   app.innerHTML = `
     <header class="top">
-      <a class="icon-btn" href="#/" aria-label="Zurück">←</a>
+      <a class="icon-btn" href="#/fach/${list.lang}" aria-label="Zurück">←</a>
       <h1>${esc(list.emoji || '📝')} ${esc(list.title)}</h1>
       ${list.builtin ? '<span></span>' : `<a class="icon-btn" href="#/bearbeiten/${encodeURIComponent(list.id)}" aria-label="Bearbeiten">✏️</a>`}
     </header>
@@ -308,7 +404,7 @@ function renderPractice(listId, mode) {
   if (!list) return go('#/');
   setSubject(list.lang);
   if (mode === 'fehler' && !lastMistakes.length) return go(`#/liste/${encodeURIComponent(listId)}`);
-  const backHash = list.due ? '#/' : `#/liste/${encodeURIComponent(list.id)}`;
+  const backHash = list.due ? `#/fach/${list.lang}` : `#/liste/${encodeURIComponent(list.id)}`;
   const queue = buildSession(list.id, mode, list.lang);
   if (!queue.length) return go(backHash);
   setTitle(list.title);
@@ -670,7 +766,7 @@ function renderEdit(list) {
   const lang = list?.lang || store.settings.subject;
   app.innerHTML = `
     <header class="top">
-      <a class="icon-btn" href="${list ? `#/liste/${encodeURIComponent(list.id)}` : '#/'}" aria-label="Zurück">←</a>
+      <a class="icon-btn" href="${list ? `#/liste/${encodeURIComponent(list.id)}` : `#/fach/${lang}`}" aria-label="Zurück">←</a>
       <h1>${list ? 'Liste bearbeiten' : 'Neue Liste'}</h1><span></span>
     </header>
     <form class="form" id="form">
@@ -707,7 +803,7 @@ function renderEdit(list) {
   document.getElementById('del')?.addEventListener('click', () => {
     if (!confirm(`Liste „${list.title}“ wirklich löschen?`)) return;
     deleteCustomList(list.id);
-    go('#/');
+    go(`#/fach/${lang}`);
   });
 }
 
@@ -723,7 +819,7 @@ function renderSettings() {
       <h1>Einstellungen</h1><span></span>
     </header>
     <form class="form" id="form">
-      <fieldset><legend>Abfragerichtung</legend>
+      <fieldset><legend>Vokabeln: Abfragerichtung</legend>
         ${opt('direction', 'de-en', 'Deutsch ➜ Englisch/Französisch schreiben', s.direction)}
         ${opt('direction', 'en-de', 'Englisch/Französisch ➜ Deutsch schreiben', s.direction)}
         ${opt('direction', 'mixed', 'Gemischt', s.direction)}
@@ -733,6 +829,11 @@ function renderSettings() {
         ${opt('tolerance', 1, '<b>Streng</b> – genau so, wie die Schrift erkannt wurde (empfohlen für Rechtschreibung)', s.tolerance)}
         ${opt('tolerance', 3, '<b>Großzügig</b> – auch wenn das Wort nur unter den ersten 3 Vorschlägen der Erkennung ist (bei unordentlicher Schrift)', s.tolerance)}
         <label class="choice"><input type="checkbox" name="caseSensitive" ${s.caseSensitive ? 'checked' : ''}> Groß- und Kleinschreibung beachten</label>
+      </fieldset>
+      <fieldset><legend>Mathe: Ergebnisse eingeben</legend>
+        ${opt('mathInput', 'pen', '✏️ Mit dem Stift schreiben (Brüche: Zähler oben, Nenner unten)', s.mathInput)}
+        ${opt('mathInput', 'keys', '⌨️ Mit der Zahlentastatur tippen', s.mathInput)}
+        <p class="muted small">Du kannst auch bei jeder Aufgabe direkt umschalten.</p>
       </fieldset>
       <fieldset><legend>Stift</legend>
         ${opt('penOnly', 'auto', 'Automatisch: Sobald ein Stift benutzt wird, werden Finger/Handballen ignoriert', s.penOnly)}
@@ -762,7 +863,7 @@ function renderSettings() {
         <button class="btn danger" type="button" id="reset">Fortschritt zurücksetzen</button>
       </fieldset>
     </form>
-    <p class="muted small center">Voki · Vokabeltrainer mit Stifterkennung · Version ${APP_VERSION}</p>
+    <p class="muted small center">Voki · Sprachen, Mathe, Bio, Erdkunde und Lernen lernen · Version ${APP_VERSION}</p>
   `;
   const form = document.getElementById('form');
   form.addEventListener('change', () => {
@@ -773,6 +874,7 @@ function renderSettings() {
       tolerance: Number(fd.get('tolerance')),
       caseSensitive: fd.get('caseSensitive') === 'on',
       penOnly: fd.get('penOnly'),
+      mathInput: fd.get('mathInput'),
       engine: fd.get('engine'),
       speak: fd.get('speak') === 'on',
       sessionSize: Number(fd.get('sessionSize')),
@@ -801,7 +903,7 @@ function renderSettings() {
     }
   });
   document.getElementById('reset').addEventListener('click', () => {
-    if (!confirm('Wirklich den ganzen Lernfortschritt löschen? Eigene Listen bleiben erhalten.')) return;
+    if (!confirm('Wirklich den ganzen Lernfortschritt löschen (Vokabeln, Sterne, Sticker und Punkte)? Eigene Listen bleiben erhalten.')) return;
     resetProgress();
     go('#/');
   });
@@ -824,7 +926,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController || updateReady) return;
     updateReady = true;
-    if (!location.hash.startsWith('#/ueben')) location.reload();
+    if (!inSession()) location.reload();
   });
 }
 
