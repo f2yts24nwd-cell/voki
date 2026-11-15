@@ -7,7 +7,7 @@ die auf der Startseite als große Kacheln zu sehen sind:
 | --- | --- |
 | 🇬🇧 **Englisch** / 🇫🇷 **Französisch** | Vokabeln und Grammatik **mit dem Stift (oder Finger)** schreiben – Voki erkennt die Handschrift und prüft die Rechtschreibung. |
 | 🔢 **Mathe** | „Zahlen-Expedition“ passend zum **Lambacher Schweizer 6** (BW, G9): Stationen für die Kapitel I–VII (Rationale Zahlen, Addieren und subtrahieren, Winkel, Multiplizieren und dividieren, Flächeninhalte, Dreisatz, Daten) plus „Grundwissen aus Klasse 5“. Das Kapitel, das gerade im Unterricht dran ist, ist markiert (`current: true` in `js/mathe-data.js`). |
-| 🧬 **Biologie (BNT)** | „Forscher-Camp“ mit 9 Stationen: Kennzeichen des Lebens, Säugetiere, Vögel, Fische, Amphibien & Reptilien, Blütenpflanzen, von der Blüte zur Frucht, Tiere im Winter, Insekten & Honigbiene. |
+| 🧬 **Biologie (BNT)** | „Forscher-Camp“ passend zu **Natura 5/6** (Klett, BW) und den Arbeitsblättern: Kennzeichen des Lebens, Säugetiere (Kap. 1), Vögel (Kap. 2, als „gerade dran“ markiert), Bau der Blütenpflanzen, Lebensraum Wiese, Pflanzenfamilien & Bestäuber, Samen & Früchte, Bäume bestimmen, Wirbellose Tiere (Kap. 7). |
 | 🌍 **Erdkunde** | „Deutschland-Tour“ mit 9 Stationen passend zum Schulbuch-Kapitel „Wir erkunden Deutschland“: Deutschland und Baden-Württemberg auf stummen Karten, Wetter & Klima (Klimadiagramme), Ebbe & Flut, Küstenschutz, Watt & Nationalpark, Hamburger Hafen, Nutzungskonflikte & Nachhaltigkeit, Harz. |
 | 🧠 **Lern-Werkstatt** | Lernmethoden mit Comics, Lexikon, Zaubersätzen und Detektiv-Fällen. |
 
