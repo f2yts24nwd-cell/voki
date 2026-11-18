@@ -308,6 +308,12 @@ code { background: var(--border); padding: 1px 5px; border-radius: 6px; }
   border-style: dashed;
 }
 .kbd.scribble::placeholder { font-size: 1.3rem; }
+/* iPadOS nimmt Stift-Eingaben in der Nähe eines Textfelds als Schrift an –
+   deshalb die Knöpfe beim Schreibfeld mit Abstand darunter */
+.practice.scribble .tools { margin-top: 36px; }
+.practice.scribble .tool { width: 60px; height: 60px; }
+.practice.scribble .check { min-height: 60px; }
+.penbox.scribble + .mtools { margin-top: 32px; }
 .mfield {
   font: inherit;
   font-size: 2.4rem;
