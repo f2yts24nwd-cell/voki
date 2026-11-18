@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 11;
+const APP_VERSION = 12;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -90,6 +90,36 @@ const withGap = (text) => esc(text).replace(/_{2,}/g, '<span class="gap">&nbsp;<
 function setTitle(t) {
   document.title = t ? `${t} · Voki` : 'Voki – Lernen mit Köpfchen';
 }
+
+// iPad + Apple Pencil: Ein kurzes Antippen von Knöpfen mit dem Stift zuverlässig als Klick werten.
+// (Nach dem Schreiben im Schreibfeld kommen Stift-Tipps sonst manchmal nicht als Klick an.)
+function enablePencilTaps() {
+  const SEL = 'button, a[href], label.choice, .qopt, .chip, .key';
+  let down = null;
+  let synthetic = null;
+  document.addEventListener('pointerdown', (e) => {
+    down = e.pointerType === 'pen' ? { el: e.target.closest(SEL), x: e.clientX, y: e.clientY } : null;
+  }, true);
+  document.addEventListener('pointerup', (e) => {
+    const d = down;
+    down = null;
+    if (!d?.el || e.pointerType !== 'pen' || d.el.disabled) return;
+    if (e.target.closest(SEL) !== d.el || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
+    e.preventDefault();
+    synthetic = { el: d.el, t: Date.now() };
+    d.el.click();
+  }, true);
+  // Den echten Klick, der eventuell noch hinterherkommt, nicht doppelt ausführen
+  document.addEventListener('click', (e) => {
+    if (!synthetic || !e.isTrusted) return;
+    if (Date.now() - synthetic.t < 700 && synthetic.el.contains(e.target)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+    synthetic = null;
+  }, true);
+}
+if (isIPad()) enablePencilTaps();
 
 // ---------- Router ----------
 
@@ -433,7 +463,7 @@ function renderPractice(listId, mode) {
   const total = new Set(queue.map((i) => i.word.id)).size;
 
   app.innerHTML = `
-    <div class="practice">
+    <div class="practice ${mode0 === 'scribble' ? 'scribble' : ''}">
       <header class="bar">
         <a class="icon-btn" href="${backHash}" aria-label="Beenden">✕</a>
         <div class="meter"><span id="progress"></span></div>

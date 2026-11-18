@@ -192,7 +192,7 @@ const TYPES = {
         : `<canvas class="mpad" data-pad="${name}" aria-label="${hint}"></canvas>`);
       const box = (name, cls, hint) => `<div class="padcell ${cls}">${field(name, hint)}${cls === 'whole' ? '<small>Ganze<br>(nur wenn nötig)</small>' : ''}</div>`;
       el.innerHTML = `${modeBar()}
-        <div class="penbox ${isFrac ? 'isfrac' : ''}">
+        <div class="penbox ${isFrac ? 'isfrac' : ''} ${scribble ? 'scribble' : ''}">
           ${isFrac
             ? `${box('whole', 'whole', 'Ganze')}<div class="padfrac">${box('num', 'part', 'Zähler')}<div class="padbar"></div>${box('den', 'part', 'Nenner')}</div>`
             : box('one', 'one', 'Ergebnis')}
