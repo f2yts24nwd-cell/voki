@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 13;
+const APP_VERSION = 14;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -540,10 +540,27 @@ function renderPractice(listId, mode) {
     updateTools();
   }
 
+  // Schreibfeld (iPad): Jedes geschriebene Stück merken, damit ↶ es wieder entfernen kann
+  const kbdHist = { stack: [], last: '' };
+  function resetKbd() {
+    kbd.value = '';
+    kbdHist.stack.length = 0;
+    kbdHist.last = '';
+  }
+  function noteKbd() {
+    if (kbd.value !== kbdHist.last) kbdHist.stack.push(kbdHist.last);
+    kbdHist.last = kbd.value;
+  }
+  function undoKbd() {
+    kbd.value = kbdHist.stack.pop() ?? '';
+    kbdHist.last = kbd.value;
+    updateTools();
+  }
+
   function updateTools() {
     const inResult = S.phase === 'result';
     $('tools').classList.toggle('hidden', inResult);
-    $('undo').disabled = S.keyboard || pad.isEmpty();
+    $('undo').disabled = S.keyboard ? !(S.scribble && kbdHist.stack.length) : pad.isEmpty();
     $('clear').disabled = S.keyboard ? !kbd.value : pad.isEmpty();
     $('tipp').disabled = S.phase !== 'ask' || S.usedHint;
     $('check').disabled = S.busy;
@@ -560,7 +577,7 @@ function renderPractice(listId, mode) {
     S.usedHint = false;
     S.undoRecord = null;
     pad.clear();
-    kbd.value = '';
+    resetKbd();
 
     const target = it.dir === 'de-en' ? langInfo(it.word.lang).name : 'Deutsch';
     if (it.kind === 'intro') {
@@ -720,7 +737,7 @@ function renderPractice(listId, mode) {
     $('fb').innerHTML = '';
     pad.clear();
     pad.setGuide(expected);
-    kbd.value = '';
+    resetKbd();
     updateTools();
     if (S.keyboard && !S.scribble) kbd.focus();
   }
@@ -744,7 +761,7 @@ function renderPractice(listId, mode) {
         next();
       });
       pad.clear();
-      kbd.value = '';
+      resetKbd();
     }
   }
 
@@ -777,11 +794,11 @@ function renderPractice(listId, mode) {
     app.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
   }
 
-  $('undo').addEventListener('click', () => pad.undo());
-  $('clear').addEventListener('click', () => { pad.clear(); kbd.value = ''; updateTools(); });
+  $('undo').addEventListener('click', () => (S.keyboard ? undoKbd() : pad.undo()));
+  $('clear').addEventListener('click', () => { pad.clear(); resetKbd(); updateTools(); });
   $('check').addEventListener('click', doCheck);
   $('kbdToggle')?.addEventListener('click', () => setKeyboard(!S.keyboard));
-  kbd.addEventListener('input', updateTools);
+  kbd.addEventListener('input', () => { noteKbd(); updateTools(); });
   $('accents').addEventListener('pointerdown', (e) => e.preventDefault()); // Fokus im Textfeld lassen
   $('accents').addEventListener('click', (e) => {
     const ch = e.target.dataset?.char;
@@ -789,6 +806,7 @@ function renderPractice(listId, mode) {
     const { selectionStart: a, selectionEnd: b, value } = kbd;
     kbd.value = value.slice(0, a) + ch + value.slice(b);
     kbd.setSelectionRange(a + 1, a + 1);
+    noteKbd();
     kbd.focus();
     updateTools();
   });
