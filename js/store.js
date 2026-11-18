@@ -112,10 +112,6 @@ export function save() {
   }
 }
 
-export function exportData() {
-  return JSON.stringify({ app: 'voki', version: 1, ...store }, null, 2);
-}
-
 export function resetProgress() {
   store.progress = {};
   store.stats = { xp: 0, streak: 0, lastDay: '' };

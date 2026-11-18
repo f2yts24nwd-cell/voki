@@ -4,7 +4,7 @@ import { check, diff } from './check.js';
 import {
   store, save, allLists, getList, wordsOf, listStats, dueWords, isDue, progressOf, record,
   currentStreak, saveCustomList, deleteCustomList, parseWordLines, wordsToLines,
-  exportData, resetProgress, MAX_BOX, dailyDone,
+  resetProgress, MAX_BOX, dailyDone,
 } from './store.js';
 import { LANGUAGES } from './vocab.js';
 import { renderLernen, spellOfTheDay, learnStats } from './lernen.js';
@@ -864,9 +864,6 @@ function renderSettings() {
       </fieldset>
       <fieldset><legend>Daten</legend>
         <p class="muted small">Dein Fortschritt wird nur auf diesem Gerät gespeichert.</p>
-        <div class="row">
-          <button class="btn" type="button" id="export">💾 Fortschritt als Datei speichern</button>
-        </div>
         <button class="btn danger" type="button" id="reset">Fortschritt zurücksetzen</button>
       </fieldset>
     </form>
@@ -887,16 +884,6 @@ function renderSettings() {
       sessionSize: Number(fd.get('sessionSize')),
     };
     save();
-  });
-  document.getElementById('export').addEventListener('click', () => {
-    const blob = new Blob([exportData()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `voki-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
   document.getElementById('reset').addEventListener('click', () => {
     if (!confirm('Wirklich den ganzen Lernfortschritt löschen (Vokabeln, Sterne, Sticker und Punkte)? Eigene Listen bleiben erhalten.')) return;

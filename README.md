@@ -52,8 +52,7 @@ und Voki erkennt die Handschrift und prüft, ob es richtig geschrieben ist.
 - Abfrage Deutsch ➜ Englisch, Englisch ➜ Deutsch oder gemischt
 - **Handballen-Schutz**: Sobald ein Stift benutzt wird, werden Finger-Berührungen ignoriert
 - Aussprache per Sprachausgabe, Tipp-Funktion (erster Buchstabe), Tastatur als Ausweichlösung
-- Funktioniert komplett **offline**, Fortschritt bleibt auf dem Gerät,
-  Fortschritt als Datei speicherbar (ein Import ist aus Sicherheitsgründen nicht möglich)
+- Funktioniert komplett **offline**, der Fortschritt bleibt nur auf dem Gerät
 
 ## 🧠 Lern-Werkstatt („Lernen lernen“)
 
