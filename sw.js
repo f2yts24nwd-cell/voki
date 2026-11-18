@@ -2,7 +2,7 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v13';
+const VERSION = 'voki-v14';
 const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
