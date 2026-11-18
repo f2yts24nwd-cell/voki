@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -109,6 +109,15 @@ function enablePencilTaps() {
     synthetic = { el: d.el, t: Date.now() };
     d.el.click();
   }, true);
+  // Scribble (iPadOS-Handschrift) nur im Schreibfeld zulassen: Auf Übungsseiten mit Schreibfeld
+  // wird jede Stift-Berührung außerhalb der Textfelder abgefangen – dann kann iPadOS dort keine
+  // Schrift beginnen. Knöpfe lösen trotzdem aus (siehe pointerup oben).
+  document.addEventListener('touchstart', (e) => {
+    if (![...e.changedTouches].some((t) => t.touchType === 'stylus')) return;
+    if (!document.querySelector('.practice.scribble, .penbox.scribble')) return;
+    if (e.target.closest?.('input, textarea, [contenteditable]')) return;
+    e.preventDefault();
+  }, { capture: true, passive: false });
   // Den echten Klick, der eventuell noch hinterherkommt, nicht doppelt ausführen
   document.addEventListener('click', (e) => {
     if (!synthetic || !e.isTrusted) return;
