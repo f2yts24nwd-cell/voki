@@ -1,10 +1,10 @@
 import { WritingPad } from './pad.js';
-import { recognize, RecognitionError } from './recognizer.js';
+import { recognize, RecognitionError, initInk, inputMode, isIPad } from './recognizer.js';
 import { check, diff } from './check.js';
 import {
   store, save, allLists, getList, wordsOf, listStats, dueWords, isDue, progressOf, record,
   currentStreak, saveCustomList, deleteCustomList, parseWordLines, wordsToLines,
-  exportData, importData, resetProgress, MAX_BOX, dailyDone,
+  resetProgress, MAX_BOX, dailyDone,
 } from './store.js';
 import { LANGUAGES } from './vocab.js';
 import { renderLernen, spellOfTheDay, learnStats } from './lernen.js';
@@ -15,9 +15,11 @@ let cleanup = () => {};
 let installPrompt = null;
 let lastMistakes = [];
 let updateReady = false;
+// Kann das Gerät Handschrift auf der Stift-Fläche selbst erkennen? (wird beim Start ermittelt)
+const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -55,7 +57,8 @@ function speak(text, lang = 'en-GB') {
   speechSynthesis.speak(u);
 }
 
-const langInfo = (lang) => LANGUAGES[lang] || LANGUAGES.en;
+const has = (o, k) => typeof k === 'string' && Object.hasOwn(o, k);
+const langInfo = (lang) => (has(LANGUAGES, lang) ? LANGUAGES[lang] : LANGUAGES.en);
 const sayWord = (w) => speak(w.en, langInfo(w.lang).voice);
 
 // Farbe je Bereich: 'home' | 'en' | 'fr' | 'mathe' | 'bio' | 'learn'
@@ -108,7 +111,7 @@ function route() {
     cleanup = renderLernen(app, [a, b], ctx);
     return;
   }
-  if (page === 'fach' && FAECHER[a]) {
+  if (page === 'fach' && has(FAECHER, a)) {
     setSubject(a);
     cleanup = renderFach(app, a, b, ctx) || (() => {});
     return;
@@ -117,7 +120,7 @@ function route() {
     cleanup = renderQuiz(app, [a, b, c], ctx) || (() => {});
     return;
   }
-  if (page === 'fach' && LANGUAGES[a]) {
+  if (page === 'fach' && has(LANGUAGES, a)) {
     if (store.settings.subject !== a) {
       store.settings.subject = a;
       save();
@@ -182,7 +185,7 @@ function renderHub() {
   const toNext = RANK_STEP - (xp % RANK_STEP);
   const h = new Date().getHours();
   const hello = h < 11 ? 'Guten Morgen' : h < 17 ? 'Hallo' : 'Guten Abend';
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isIOS = /iphone|ipod/i.test(navigator.userAgent) || isIPad();
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const lang = Object.fromEntries(Object.keys(LANGUAGES).map((code) => [code, langStats(code)]));
   const mathe = fachStats('mathe');
@@ -285,7 +288,7 @@ function renderHome() {
         <div><b>🧠 ${mastered}</b><span>Wörter sicher</span></div>
       </div>
       ${due.length
-        ? `<a class="btn primary big" href="#/ueben/_faellig-${subject}/wiederholen">${L.flag} Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
+        ? `<a class="btn primary big" href="#/ueben/_faellig-${encodeURIComponent(subject)}/wiederholen">${L.flag} Wiederholen · ${due.length} ${due.length === 1 ? 'Wort' : 'Wörter'} fällig</a>`
         : `<p class="muted center">In ${L.name} ist heute nichts zu wiederholen. Such dir ein Thema aus und lern neue Wörter! 🚀</p>`}
     </section>
     <h2>📚 Vokabeln</h2>
@@ -320,7 +323,7 @@ function renderList(list) {
   }
   app.innerHTML = `
     <header class="top">
-      <a class="icon-btn" href="#/fach/${list.lang}" aria-label="Zurück">←</a>
+      <a class="icon-btn" href="#/fach/${encodeURIComponent(list.lang)}" aria-label="Zurück">←</a>
       <h1>${esc(list.emoji || '📝')} ${esc(list.title)}</h1>
       ${list.builtin ? '<span></span>' : `<a class="icon-btn" href="#/bearbeiten/${encodeURIComponent(list.id)}" aria-label="Bearbeiten">✏️</a>`}
     </header>
@@ -398,16 +401,21 @@ function buildSession(listId, mode, lang) {
 function renderPractice(listId, mode) {
   // "_faellig-en" / "_faellig-fr": alle fälligen Wörter eines Fachs
   const dueLang = listId?.startsWith('_faellig-') ? listId.slice(9) : null;
-  const list = dueLang && LANGUAGES[dueLang]
+  const list = dueLang && has(LANGUAGES, dueLang)
     ? { id: listId, title: 'Wiederholen', emoji: '🔁', lang: dueLang, due: true }
     : getList(listId);
   if (!list) return go('#/');
   setSubject(list.lang);
   if (mode === 'fehler' && !lastMistakes.length) return go(`#/liste/${encodeURIComponent(listId)}`);
-  const backHash = list.due ? `#/fach/${list.lang}` : `#/liste/${encodeURIComponent(list.id)}`;
+  const backHash = list.due ? `#/fach/${encodeURIComponent(list.lang)}` : `#/liste/${encodeURIComponent(list.id)}`;
   const queue = buildSession(list.id, mode, list.lang);
   if (!queue.length) return go(backHash);
   setTitle(list.title);
+
+  // Eingabeart: Stift-Fläche (Erkennung im Browser), Schreibfeld (iPad: Apple Pencil) oder Tastatur
+  const inkLangs = [...new Set(queue.map((it) => (it.kind === 'intro' ? langInfo(it.word.lang).ink : (it.dir === 'de-en' ? langInfo(it.word.lang).ink : 'de'))))];
+  const canPen = inputMode(inkLangs, 'auto') === 'pen';
+  const mode0 = inputMode(inkLangs, store.settings.engine);
 
   const S = {
     queue,
@@ -416,7 +424,8 @@ function renderPractice(listId, mode) {
     results: new Map(),
     requeued: new Map(),
     usedHint: false,
-    keyboard: store.settings.engine === 'keyboard',
+    keyboard: mode0 !== 'pen',
+    scribble: mode0 === 'scribble',
     busy: false,
     undoRecord: null,
     timer: null,
@@ -438,7 +447,7 @@ function renderPractice(listId, mode) {
       <section class="feedback" id="fb" aria-live="polite"></section>
       <div class="pad-wrap" id="padWrap">
         <canvas id="pad" aria-label="Schreibfläche"></canvas>
-        <input id="kbd" class="kbd" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Hier tippen …" hidden>
+        <input id="kbd" class="kbd ${mode0 === 'scribble' ? 'scribble' : ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="${mode0 === 'scribble' ? '✏️ Hier mit dem Apple Pencil schreiben' : 'Hier tippen …'}" hidden>
         <div class="accents" id="accents" hidden>
           ${[...'éèêëàâçîïôùûœ'].map((c) => `<button type="button" data-char="${c}">${c}</button>`).join('')}
         </div>
@@ -447,7 +456,7 @@ function renderPractice(listId, mode) {
         <button class="tool" id="undo" aria-label="Rückgängig">↶</button>
         <button class="tool" id="clear" aria-label="Löschen">🗑️</button>
         <button class="tool" id="tipp" aria-label="Tipp">💡</button>
-        <button class="tool" id="kbdToggle" aria-label="Tastatur">⌨️</button>
+        ${canPen ? '<button class="tool" id="kbdToggle" aria-label="Tastatur">⌨️</button>' : ''}
         <button class="btn primary check" id="check">Prüfen ✓</button>
       </div>
     </div>
@@ -484,8 +493,9 @@ function renderPractice(listId, mode) {
     S.keyboard = on;
     kbd.hidden = !on;
     $('pad').hidden = on;
-    $('kbdToggle').classList.toggle('on', on);
-    if (on) setTimeout(() => kbd.focus(), 50);
+    $('kbdToggle')?.classList.toggle('on', on);
+    // Beim Schreibfeld nicht fokussieren – sonst erscheint auf dem iPad die Bildschirmtastatur
+    if (on && !S.scribble) setTimeout(() => kbd.focus(), 50);
     else pad.resize();
     updateAccents();
     updateTools();
@@ -538,7 +548,7 @@ function renderPractice(listId, mode) {
     $('say')?.addEventListener('click', () => sayWord(it.word));
     updateAccents();
     updateTools();
-    if (S.keyboard) kbd.focus();
+    if (S.keyboard && !S.scribble) kbd.focus();
   }
 
   function next() {
@@ -569,7 +579,6 @@ function renderPractice(listId, mode) {
       updateTools();
       try {
         candidates = await recognize(pad.strokes, {
-          engine: store.settings.engine,
           lang: it.kind === 'intro' ? langInfo(it.word.lang).ink : langOf(it),
           width: pad.width,
           height: pad.height,
@@ -581,7 +590,7 @@ function renderPractice(listId, mode) {
         $('fb').innerHTML = `
           <div class="msg warn">${esc(e instanceof RecognitionError ? e.message : 'Fehler bei der Erkennung: ' + e.message)}</div>
           <button class="btn" id="useKbd">⌨️ Tastatur benutzen</button>`;
-        $('useKbd').addEventListener('click', () => { $('fb').innerHTML = ''; setKeyboard(true); });
+        $('useKbd').addEventListener('click', () => { $('fb').innerHTML = ''; S.scribble = false; setKeyboard(true); });
         return;
       }
       S.busy = false;
@@ -591,7 +600,7 @@ function renderPractice(listId, mode) {
     const expected = it.kind === 'intro' ? it.word.en : answerOf(it);
     const res = check(candidates, expected, {
       caseSensitive: store.settings.caseSensitive,
-      tolerance: S.keyboard ? 1 : store.settings.tolerance,
+      tolerance: S.keyboard && !S.scribble ? 1 : store.settings.tolerance,
     });
 
     if (S.phase === 'copy') return copyResult(it, res, expected);
@@ -635,7 +644,7 @@ function renderPractice(listId, mode) {
           <button class="btn primary" id="copy">✍️ Richtig abschreiben</button>
           <button class="btn" id="next">Weiter ➜</button>
         </div>
-        ${S.keyboard ? '' : '<button class="link" id="override">Ich hatte es richtig – die Schrift wurde falsch erkannt</button>'}`;
+        ${S.keyboard && !S.scribble ? '' : '<button class="link" id="override">Ich hatte es richtig – die Schrift wurde falsch erkannt</button>'}`;
       if (store.settings.speak) sayWord(it.word);
       $('copy').addEventListener('click', () => startCopy(it, expected));
       $('override')?.addEventListener('click', () => override(it, expected));
@@ -674,7 +683,7 @@ function renderPractice(listId, mode) {
     pad.setGuide(expected);
     kbd.value = '';
     updateTools();
-    if (S.keyboard) kbd.focus();
+    if (S.keyboard && !S.scribble) kbd.focus();
   }
 
   function copyResult(it, res, expected) {
@@ -732,7 +741,7 @@ function renderPractice(listId, mode) {
   $('undo').addEventListener('click', () => pad.undo());
   $('clear').addEventListener('click', () => { pad.clear(); kbd.value = ''; updateTools(); });
   $('check').addEventListener('click', doCheck);
-  $('kbdToggle').addEventListener('click', () => setKeyboard(!S.keyboard));
+  $('kbdToggle')?.addEventListener('click', () => setKeyboard(!S.keyboard));
   kbd.addEventListener('input', updateTools);
   $('accents').addEventListener('pointerdown', (e) => e.preventDefault()); // Fokus im Textfeld lassen
   $('accents').addEventListener('click', (e) => {
@@ -766,7 +775,7 @@ function renderEdit(list) {
   const lang = list?.lang || store.settings.subject;
   app.innerHTML = `
     <header class="top">
-      <a class="icon-btn" href="${list ? `#/liste/${encodeURIComponent(list.id)}` : `#/fach/${lang}`}" aria-label="Zurück">←</a>
+      <a class="icon-btn" href="${list ? `#/liste/${encodeURIComponent(list.id)}` : `#/fach/${encodeURIComponent(lang)}`}" aria-label="Zurück">←</a>
       <h1>${list ? 'Liste bearbeiten' : 'Neue Liste'}</h1><span></span>
     </header>
     <form class="form" id="form">
@@ -795,7 +804,7 @@ function renderEdit(list) {
       return;
     }
     const id = list?.id || 'eigene-' + Date.now().toString(36);
-    const listLang = fd.get('lang') || 'en';
+    const listLang = has(LANGUAGES, fd.get('lang')) ? fd.get('lang') : 'en';
     store.settings.subject = listLang;
     saveCustomList({ id, lang: listLang, type: 'vocab', title: fd.get('title').trim() || 'Meine Liste', emoji: fd.get('emoji').trim() || '📘', words });
     go(`#/liste/${encodeURIComponent(id)}`);
@@ -841,11 +850,11 @@ function renderSettings() {
         ${opt('penOnly', 'off', 'Stift, Finger und Maus', s.penOnly)}
       </fieldset>
       <fieldset><legend>Handschrifterkennung</legend>
-        ${opt('engine', 'auto', 'Automatisch', s.engine)}
-        ${opt('engine', 'native', 'Nur auf dem Gerät (offline, nur manche Browser, z. B. Chrome auf Android)', s.engine)}
-        ${opt('engine', 'google', 'Google-Handschrifterkennung (online, alle Geräte)', s.engine)}
-        ${opt('engine', 'keyboard', 'Keine – mit Tastatur tippen', s.engine)}
-        <p class="muted small">Bei der Online-Erkennung werden nur die Stiftstriche (keine persönlichen Daten) an Google geschickt.</p>
+        ${opt('engine', 'auto', 'Mit dem Stift schreiben, wenn das Gerät die Schrift selbst erkennen kann', s.engine)}
+        ${opt('engine', 'keyboard', 'Immer mit der Tastatur tippen', s.engine)}
+        <p class="muted small">🔒 Die Handschrift wird nur auf diesem Gerät erkannt – es wird nichts ins Internet geschickt.
+          ${isIPad() ? 'Auf dem iPad übernimmt das die Apple-Pencil-Funktion <b>„Handschrift“</b> (iPad-Einstellungen ➜ Apple Pencil).' : ''}
+          ${ink.draw ? 'Dieses Gerät hat eine eingebaute Handschrifterkennung. ✅' : isIPad() ? '' : 'Dieses Gerät hat keine eingebaute Handschrifterkennung – hier wird getippt.'}</p>
       </fieldset>
       <fieldset><legend>Sonstiges</legend>
         <label class="choice"><input type="checkbox" name="speak" ${s.speak ? 'checked' : ''}> Wörter vorlesen</label>
@@ -854,12 +863,7 @@ function renderSettings() {
         </label>
       </fieldset>
       <fieldset><legend>Daten</legend>
-        <p class="muted small">Dein Fortschritt wird nur auf diesem Gerät gespeichert. Mit einer Sicherung kannst du ihn auf ein anderes Gerät mitnehmen.</p>
-        <div class="row">
-          <button class="btn" type="button" id="export">💾 Sicherung speichern</button>
-          <label class="btn" for="importFile">📂 Sicherung laden</label>
-          <input type="file" id="importFile" accept="application/json,.json" hidden>
-        </div>
+        <p class="muted small">Dein Fortschritt wird nur auf diesem Gerät gespeichert.</p>
         <button class="btn danger" type="button" id="reset">Fortschritt zurücksetzen</button>
       </fieldset>
     </form>
@@ -875,32 +879,11 @@ function renderSettings() {
       caseSensitive: fd.get('caseSensitive') === 'on',
       penOnly: fd.get('penOnly'),
       mathInput: fd.get('mathInput'),
-      engine: fd.get('engine'),
+      engine: fd.get('engine') === 'keyboard' ? 'keyboard' : 'auto',
       speak: fd.get('speak') === 'on',
       sessionSize: Number(fd.get('sessionSize')),
     };
     save();
-  });
-  document.getElementById('export').addEventListener('click', () => {
-    const blob = new Blob([exportData()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `voki-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  });
-  document.getElementById('importFile').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      importData(await file.text());
-      alert('Sicherung geladen ✅');
-      go('#/');
-    } catch (err) {
-      alert('Das hat nicht geklappt: ' + err.message);
-    }
   });
   document.getElementById('reset').addEventListener('click', () => {
     if (!confirm('Wirklich den ganzen Lernfortschritt löschen (Vokabeln, Sterne, Sticker und Punkte)? Eigene Listen bleiben erhalten.')) return;
@@ -930,4 +913,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
 }
 
-route();
+// Erst nachsehen, ob das Gerät Handschrift selbst erkennen kann, dann loslegen
+initInk().catch(() => {}).finally(() => {
+  ink.draw = inputMode(['en', 'fr', 'de'], 'auto') === 'pen';
+  route();
+});

@@ -13,7 +13,7 @@
 
 import { addXp, store, save } from './store.js';
 import { WritingPad } from './pad.js';
-import { recognize, RecognitionError } from './recognizer.js';
+import { recognize, RecognitionError, inputMode } from './recognizer.js';
 import { talk } from './comic.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,6 +23,20 @@ export function fmt(text) {
     .replace(/\{(-?)(?:(\d+) )?([\d□]+)\/([\d□]+)\}/g, (m, sign, whole, n, d) => `<span class="fr">${sign ? '−' : ''}${whole ?? ''}<span class="frac"><i>${n}</i><i>${d}</i></span></span>`)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/\n/g, '<br>');
+}
+
+// Schreibfeld (iPad + Apple Pencil) mit derselben Schnittstelle wie die Stift-Fläche
+function fieldPad(input, onChange) {
+  const history = [];
+  input.addEventListener('input', () => { history.push(input.value); onChange(); });
+  return {
+    isEmpty: () => !input.value.trim(),
+    text: () => input.value.trim(),
+    clear: () => { input.value = ''; history.length = 0; onChange(); },
+    undo: () => { history.pop(); input.value = history.at(-1) || ''; onChange(); },
+    destroy: () => {},
+    set disabled(v) { input.disabled = v; },
+  };
 }
 
 export function shuffle(arr) {
@@ -101,7 +115,10 @@ const TYPES = {
 
   num(q, el, done, ctl) {
     const isFrac = /\//.test(q.c);
-    let mode = store.settings.engine === 'keyboard' ? 'keys' : (store.settings.mathInput || 'pen');
+    // Schreiben geht mit der Stift-Fläche (Erkennung im Browser) oder auf dem iPad im Schreibfeld (Apple Pencil)
+    const ink = inputMode(['de'], 'auto');
+    const canWrite = store.settings.engine !== 'keyboard' && ink !== 'keyboard';
+    let mode = canWrite ? (store.settings.mathInput || 'pen') : 'keys';
     let val = '';
     let warned = false;
     let busy = false;
@@ -129,7 +146,7 @@ const TYPES = {
       return done(ok, `${viaPen ? `Ich habe gelesen: <b>${pretty(v)}</b><br>` : ''}Richtig ist: <b class="big-ans">${showNum(q.c)}${q.unit ? ` ${esc(q.unit)}` : ''}</b>`, { redo: viaPen });
     }
 
-    const modeBar = () => (store.settings.engine === 'keyboard' ? '' : `
+    const modeBar = () => (!canWrite ? '' : `
       <div class="modebar">
         <button type="button" class="modebtn ${mode === 'pen' ? 'on' : ''}" data-mode="pen">✏️ Schreiben</button>
         <button type="button" class="modebtn ${mode === 'keys' ? 'on' : ''}" data-mode="keys">⌨️ Tippen</button>
@@ -169,7 +186,11 @@ const TYPES = {
     // ----- Mit dem Stift schreiben -----
     // Ganze Zahlen und Kommazahlen: ein Feld. Brüche: eigene Felder für Ganze, Zähler und Nenner.
     function renderPen() {
-      const box = (name, cls, hint) => `<div class="padcell ${cls}"><canvas class="mpad" data-pad="${name}" aria-label="${hint}"></canvas>${cls === 'whole' ? '<small>Ganze<br>(nur wenn nötig)</small>' : ''}</div>`;
+      const scribble = ink === 'scribble';
+      const field = (name, hint) => (scribble
+        ? `<input class="mpad mfield" data-pad="${name}" aria-label="${hint}" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="✏️">`
+        : `<canvas class="mpad" data-pad="${name}" aria-label="${hint}"></canvas>`);
+      const box = (name, cls, hint) => `<div class="padcell ${cls}">${field(name, hint)}${cls === 'whole' ? '<small>Ganze<br>(nur wenn nötig)</small>' : ''}</div>`;
       el.innerHTML = `${modeBar()}
         <div class="penbox ${isFrac ? 'isfrac' : ''}">
           ${isFrac
@@ -180,12 +201,13 @@ const TYPES = {
         <div class="mtools">
           <button type="button" class="tool mtool" data-tool="undo" aria-label="Rückgängig">↶</button>
           <button type="button" class="tool mtool" data-tool="clear" aria-label="Löschen">🗑️</button>
-          <span class="muted small">${isFrac ? 'Schreib den Zähler oben und den Nenner unten.' : 'Schreib dein Ergebnis mit dem Stift oder Finger.'}</span>
+          <span class="muted small">${isFrac ? 'Schreib den Zähler oben und den Nenner unten.' : scribble ? 'Schreib dein Ergebnis mit dem Apple Pencil ins Feld.' : 'Schreib dein Ergebnis mit dem Stift oder Finger.'}</span>
         </div>`;
       const update = () => ctl.ready(!busy && pads.some((p) => !p.pad.isEmpty()));
-      pads = [...el.querySelectorAll('.mpad')].map((canvas) => {
-        const p = { name: canvas.dataset.pad, pad: null };
-        p.pad = new WritingPad(canvas, { penOnly: store.settings.penOnly, onChange: () => { if (!p.pad.isEmpty()) lastPad = p; update(); } });
+      pads = [...el.querySelectorAll('.mpad')].map((node) => {
+        const p = { name: node.dataset.pad, pad: null };
+        const onChange = () => { if (!p.pad.isEmpty()) lastPad = p; update(); };
+        p.pad = scribble ? fieldPad(node, onChange) : new WritingPad(node, { penOnly: store.settings.penOnly, onChange });
         return p;
       });
       el.querySelector('.mtools').addEventListener('click', (e) => {
@@ -203,9 +225,7 @@ const TYPES = {
         try {
           for (const p of pads) {
             if (p.pad.isEmpty()) continue;
-            const cands = await recognize(p.pad.strokes, {
-              engine: store.settings.engine, lang: 'de', width: p.pad.width, height: p.pad.height, pointerType: p.pad.lastPointerType,
-            });
+            const cands = scribble ? [p.pad.text()] : await recognize(p.pad.strokes, { lang: 'de', pointerType: p.pad.lastPointerType });
             read[p.name] = readNumber(cands, p.name === 'one' ? /^-?\d+(,\d+)?$|^-?\d+\/\d+$/ : /^\d+$/) ?? '?';
           }
         } catch (e) {

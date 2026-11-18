@@ -1,19 +1,23 @@
-// Handschrifterkennung.
-// 1. "native": eingebaute Handwriting Recognition API des Browsers
-//    (läuft offline auf dem Gerät, z. B. Chrome auf Android/ChromeOS).
-// 2. "google": Online-Handschrifterkennung von Google Input Tools
-//    (funktioniert in allen Browsern inkl. Safari auf dem iPad, braucht Internet).
-
-const GOOGLE_URLS = [
-  'https://inputtools.google.com/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8',
-  'https://www.google.com/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8',
-];
+// Handschrifterkennung – ausschließlich auf dem Gerät, es wird nichts ins Internet geschickt.
+//
+// 1. "Stift-Fläche": eingebaute Handwriting Recognition API des Browsers
+//    (z. B. Chrome auf Android/ChromeOS). Die Striche auf der Zeichenfläche werden
+//    direkt vom Gerät erkannt.
+// 2. "Schreibfeld" auf dem iPad: Ein großes Textfeld, in das man mit dem Apple Pencil
+//    schreibt. Die Erkennung übernimmt iPadOS selbst (Funktion „Handschrift“/Scribble,
+//    läuft auf dem iPad).
+// 3. Überall sonst: Tastatur.
 
 export class RecognitionError extends Error {}
 
+const INK_LANGS = ['en', 'fr', 'de'];
+const support = {}; // Sprache -> true/false (eingebaute Erkennung)
 const nativeCache = {};
 
-export async function nativeSupported(lang) {
+export const isIPad = () => /ipad/i.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+async function querySupport(lang) {
   if (!('createHandwritingRecognizer' in navigator)) return false;
   try {
     if (navigator.queryHandwritingRecognizer) {
@@ -25,85 +29,44 @@ export async function nativeSupported(lang) {
   }
 }
 
-async function recognizeNative(strokes, { lang, pointerType }) {
-  if (!nativeCache[lang]) {
-    nativeCache[lang] = navigator.createHandwritingRecognizer({ languages: [lang] });
-  }
-  const recognizer = await nativeCache[lang];
-  const inputType = pointerType === 'pen' ? 'stylus' : pointerType === 'mouse' ? 'mouse' : 'touch';
-  const drawing = recognizer.startDrawing({ recognitionType: 'text', inputType, alternatives: 5 });
-  try {
-    for (const s of strokes) {
-      const stroke = new HandwritingStroke();
-      for (const p of s) stroke.addPoint({ x: p.x, y: p.y, t: p.t });
-      drawing.addStroke(stroke);
-    }
-    const predictions = await drawing.getPrediction();
-    return (predictions || []).map((p) => p.text);
-  } finally {
-    drawing.clear?.();
-  }
+// Einmal beim Start: Welche Sprachen kann das Gerät selbst erkennen?
+export async function initInk() {
+  await Promise.all(INK_LANGS.map(async (l) => { support[l] = await querySupport(l); }));
 }
 
-async function recognizeGoogle(strokes, { lang, width, height }) {
-  const t0 = strokes[0]?.[0]?.t ?? 0;
-  const ink = strokes.map((s) => [
-    s.map((p) => Math.round(p.x)),
-    s.map((p) => Math.round(p.y)),
-    s.map((p) => Math.max(0, Math.round(p.t - t0))),
-  ]);
-  const body = JSON.stringify({
-    options: 'enable_pre_space',
-    requests: [{
-      writing_guide: { writing_area_width: Math.round(width), writing_area_height: Math.round(height) },
-      ink,
-      language: lang,
-      max_num_results: 8,
-      max_completions: 0,
-    }],
-  });
+// Kann das Gerät alle diese Sprachen auf der Stift-Fläche erkennen?
+export const canDraw = (langs) => langs.every((l) => support[l]);
 
-  if (!navigator.onLine) {
-    throw new RecognitionError('Keine Internetverbindung – die Handschrifterkennung braucht Internet. Du kannst stattdessen die Tastatur benutzen.');
-  }
-
-  let lastError;
-  for (const url of GOOGLE_URLS) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        signal: ctrl.signal,
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      // Antwortformat: ["SUCCESS", [[id, [kandidat1, kandidat2, ...], ...]]]
-      if (data[0] !== 'SUCCESS') throw new Error(String(data[0]));
-      return data[1]?.[0]?.[1] || [];
-    } catch (e) {
-      lastError = e;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  throw new RecognitionError('Die Handschrifterkennung ist gerade nicht erreichbar (' + (lastError?.message || 'Fehler') + '). Versuch es nochmal oder nimm die Tastatur.');
+// Eingabeart für eine Übung: 'pen' (Stift-Fläche) | 'scribble' (Schreibfeld, iPad) | 'keyboard'
+export function inputMode(langs, engine) {
+  if (engine === 'keyboard') return 'keyboard';
+  if (canDraw(langs)) return 'pen';
+  if (isIPad()) return 'scribble';
+  return 'keyboard';
 }
 
 // Liefert eine Liste von Kandidaten, der wahrscheinlichste zuerst.
-export async function recognize(strokes, opts) {
+export async function recognize(strokes, { lang, pointerType }) {
   if (!strokes.length) return [];
-  let engine = opts.engine || 'auto';
-  if (engine === 'auto') engine = (await nativeSupported(opts.lang)) ? 'native' : 'google';
-  if (engine === 'native') {
+  if (!support[lang]) throw new RecognitionError('Dieses Gerät kann die Handschrift nicht selbst erkennen. Bitte benutz die Tastatur.');
+  try {
+    if (!nativeCache[lang]) nativeCache[lang] = navigator.createHandwritingRecognizer({ languages: [lang] });
+    const recognizer = await nativeCache[lang];
+    const inputType = pointerType === 'pen' ? 'stylus' : pointerType === 'mouse' ? 'mouse' : 'touch';
+    const drawing = recognizer.startDrawing({ recognitionType: 'text', inputType, alternatives: 5 });
     try {
-      return await recognizeNative(strokes, opts);
-    } catch (e) {
-      if (opts.engine === 'native') throw new RecognitionError('Die Erkennung auf dem Gerät ist fehlgeschlagen: ' + e.message);
-      // bei "auto" auf Google ausweichen
+      for (const s of strokes) {
+        const stroke = new HandwritingStroke();
+        for (const p of s) stroke.addPoint({ x: p.x, y: p.y, t: p.t });
+        drawing.addStroke(stroke);
+      }
+      const predictions = await drawing.getPrediction();
+      return (predictions || []).map((p) => p.text);
+    } finally {
+      drawing.clear?.();
     }
+  } catch (e) {
+    delete nativeCache[lang];
+    throw new RecognitionError('Die Erkennung auf dem Gerät ist fehlgeschlagen: ' + e.message);
   }
-  return recognizeGoogle(strokes, opts);
 }

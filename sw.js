@@ -2,7 +2,7 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v10';
+const VERSION = 'voki-v11';
 const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
@@ -52,7 +52,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Nur eigene Dateien, die Handschrifterkennung läuft immer übers Netz
+  // Nur eigene Dateien
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   url.hash = '';
 

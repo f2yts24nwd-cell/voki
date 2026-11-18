@@ -1,6 +1,6 @@
 // Speicherung im Browser (localStorage) und Lernfortschritt (Karteikasten).
 
-import { BUILTIN_LISTS } from './vocab.js';
+import { BUILTIN_LISTS, LANGUAGES } from './vocab.js';
 
 const KEY = 'voki.v1';
 const DAY = 24 * 60 * 60 * 1000;
@@ -11,7 +11,7 @@ export const MAX_BOX = INTERVALS.length - 1;
 export const DEFAULT_SETTINGS = {
   subject: 'en',           // aktuelles Fach: 'en' | 'fr'
   direction: 'de-en',      // 'de-en' = Deutsch ➜ Fremdsprache | 'en-de' = umgekehrt | 'mixed'
-  engine: 'auto',          // 'auto' | 'native' | 'google' | 'keyboard'
+  engine: 'auto',          // 'auto' (Handschrift, wenn das Gerät sie selbst erkennt) | 'keyboard'
   tolerance: 1,            // 1 = streng (nur bestes Ergebnis zählt), 3 = großzügig
   caseSensitive: false,
   penOnly: 'auto',         // 'auto' | 'on' | 'off'
@@ -20,30 +20,86 @@ export const DEFAULT_SETTINGS = {
   mathInput: 'pen',        // Mathe-Ergebnisse: 'pen' = mit dem Stift schreiben | 'keys' = tippen
 };
 
-// Lern-Werkstatt: ausprobierte Methoden (Sticker) und gelöste Detektiv-Fälle
-function freshLearn(l = {}) {
-  return { tried: { ...(l.tried || {}) }, cases: { ...(l.cases || {}) } };
+// Lern-Werkstatt (ausprobierte Methoden, gelöste Fälle) und Quiz (Sterne, Aufträge, Tages-Challenge)
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const obj = (v) => (isObj(v) ? v : {});
+const str = (v, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '');
+const num = (v) => (Number.isFinite(v) ? v : 0);
+const oneOf = (v, allowed, fallback) => (allowed.includes(v) ? v : fallback);
+
+// Gespeicherte Daten streng prüfen: nur bekannte Felder mit passendem Typ übernehmen
+function cleanSettings(s) {
+  s = obj(s);
+  const d = DEFAULT_SETTINGS;
+  return {
+    subject: Object.hasOwn(LANGUAGES, s.subject) ? s.subject : d.subject,
+    direction: oneOf(s.direction, ['de-en', 'en-de', 'mixed'], d.direction),
+    // frühere Werte 'native' und 'google' -> 'auto' (nur noch Erkennung auf dem Gerät)
+    engine: oneOf(s.engine, ['auto', 'keyboard'], d.engine),
+    tolerance: oneOf(s.tolerance, [1, 3], d.tolerance),
+    caseSensitive: s.caseSensitive === true,
+    penOnly: oneOf(s.penOnly, ['auto', 'on', 'off'], d.penOnly),
+    speak: typeof s.speak === 'boolean' ? s.speak : d.speak,
+    sessionSize: oneOf(s.sessionSize, [5, 10, 15, 20], d.sessionSize),
+    mathInput: oneOf(s.mathInput, ['pen', 'keys'], d.mathInput),
+  };
 }
 
-// Mathe & Bio: Sterne je Level, erledigte Forscher-Aufträge, Tages-Challenge
+function cleanList(l) {
+  if (!isObj(l) || typeof l.id !== 'string' || !/^eigene-[a-z0-9]+$/.test(l.id) || !Array.isArray(l.words)) return null;
+  const words = l.words.filter(isObj).map((w) => ({ en: str(w.en), de: str(w.de), hint: str(w.hint) })).filter((w) => w.en && w.de);
+  return {
+    id: l.id,
+    // Eigene Listen von vor der Französisch-Erweiterung haben keine Sprache -> Englisch
+    lang: Object.hasOwn(LANGUAGES, l.lang) ? l.lang : 'en',
+    type: 'vocab',
+    title: str(l.title, 40) || 'Meine Liste',
+    emoji: str(l.emoji, 8) || '📘',
+    words,
+  };
+}
+
+function cleanProgress(p) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj(p))) {
+    if (!isObj(v)) continue;
+    out[k] = { box: Math.min(MAX_BOX, Math.max(0, Math.trunc(num(v.box)))), due: num(v.due), right: num(v.right), wrong: num(v.wrong), last: num(v.last) };
+  }
+  return out;
+}
+
+// Zeitstempel (Sticker, Aufträge) bzw. Sternzahlen
+const cleanMap = (m, max = Infinity) => Object.fromEntries(Object.entries(obj(m)).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => [k, Math.min(max, v)]));
+
+function freshLearn(l = {}) {
+  return { tried: cleanMap(obj(l).tried), cases: cleanMap(obj(l).cases) };
+}
+
 function freshQuiz(q = {}) {
-  return { stars: { ...(q.stars || {}) }, tasks: { ...(q.tasks || {}) }, daily: q.daily || '', played: q.played || 0 };
+  q = obj(q);
+  return { stars: cleanMap(q.stars, 3), tasks: cleanMap(q.tasks), daily: str(q.daily, 20), played: num(q.played) };
+}
+
+function cleanStats(s) {
+  s = obj(s);
+  return { xp: Math.max(0, num(s.xp)), streak: Math.max(0, num(s.streak)), lastDay: str(s.lastDay, 20) };
 }
 
 function load() {
+  let data = {};
   try {
-    const data = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return {
-      settings: { ...DEFAULT_SETTINGS, ...(data.settings || {}) },
-      progress: data.progress || {},
-      custom: data.custom || [],
-      stats: { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) },
-      learn: freshLearn(data.learn),
-      quiz: freshQuiz(data.quiz),
-    };
+    data = obj(JSON.parse(localStorage.getItem(KEY) || '{}'));
   } catch {
-    return { settings: { ...DEFAULT_SETTINGS }, progress: {}, custom: [], stats: { xp: 0, streak: 0, lastDay: '' }, learn: freshLearn(), quiz: freshQuiz() };
+    // kaputte oder gesperrte Daten -> frisch anfangen
   }
+  return {
+    settings: cleanSettings(data.settings),
+    progress: cleanProgress(data.progress),
+    custom: (Array.isArray(data.custom) ? data.custom : []).map(cleanList).filter(Boolean),
+    stats: cleanStats(data.stats),
+    learn: freshLearn(data.learn),
+    quiz: freshQuiz(data.quiz),
+  };
 }
 
 export const store = load();
@@ -54,22 +110,6 @@ export function save() {
   } catch {
     // Speicher voll oder gesperrt (privater Modus) – App funktioniert trotzdem
   }
-}
-
-export function exportData() {
-  return JSON.stringify({ app: 'voki', version: 1, ...store }, null, 2);
-}
-
-export function importData(json) {
-  const data = JSON.parse(json);
-  if (data.app !== 'voki') throw new Error('Das ist keine Voki-Sicherung.');
-  store.settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
-  store.progress = data.progress || {};
-  store.custom = data.custom || [];
-  store.stats = { xp: 0, streak: 0, lastDay: '', ...(data.stats || {}) };
-  store.learn = freshLearn(data.learn);
-  store.quiz = freshQuiz(data.quiz);
-  save();
 }
 
 export function resetProgress() {
@@ -152,8 +192,7 @@ export function solveCase(id) {
 
 // ---------- Listen ----------
 
-// Eigene Listen von vor der Französisch-Erweiterung haben keine Sprache -> Englisch
-const customLists = () => store.custom.map((l) => ({ type: 'vocab', lang: 'en', ...l }));
+const customLists = () => store.custom;
 
 export function allLists(lang) {
   const lists = [...BUILTIN_LISTS, ...customLists()];

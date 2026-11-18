@@ -301,6 +301,23 @@ code { background: var(--border); padding: 1px 5px; border-radius: 6px; }
   color: var(--text);
   text-align: center;
 }
+/* Schreibfeld fürs iPad: groß wie die Stift-Fläche, iPadOS erkennt die Apple-Pencil-Schrift */
+.kbd.scribble {
+  min-height: clamp(150px, 26vh, 230px);
+  font-size: 2.6rem;
+  border-style: dashed;
+}
+.kbd.scribble::placeholder { font-size: 1.3rem; }
+.mfield {
+  font: inherit;
+  font-size: 2.4rem;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0 8px;
+}
 .shake { animation: shake 0.35s; }
 
 .tools { display: flex; gap: 10px; align-items: center; }

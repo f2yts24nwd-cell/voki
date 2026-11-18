@@ -52,8 +52,7 @@ und Voki erkennt die Handschrift und prüft, ob es richtig geschrieben ist.
 - Abfrage Deutsch ➜ Englisch, Englisch ➜ Deutsch oder gemischt
 - **Handballen-Schutz**: Sobald ein Stift benutzt wird, werden Finger-Berührungen ignoriert
 - Aussprache per Sprachausgabe, Tipp-Funktion (erster Buchstabe), Tastatur als Ausweichlösung
-- Funktioniert **offline** (außer der Online-Handschrifterkennung), Fortschritt bleibt auf dem Gerät,
-  Sicherung als Datei exportier-/importierbar
+- Funktioniert komplett **offline**, der Fortschritt bleibt nur auf dem Gerät
 
 ## 🧠 Lern-Werkstatt („Lernen lernen“)
 
@@ -77,10 +76,14 @@ in eigenen Worten und mit eigenen Zeichnungen umgesetzt.
 
 ## Handschrifterkennung
 
-1. **Auf dem Gerät** (offline): die eingebaute *Handwriting Recognition API* – derzeit nur in manchen
-   Chromium-Browsern (z. B. Chrome auf Android/ChromeOS).
-2. **Online**: Google-Handschrifterkennung (Google Input Tools) – funktioniert überall, auch in Safari auf dem iPad.
-   Dabei werden nur die Stiftstriche übertragen.
+Die Handschrift wird **nur auf dem Gerät** erkannt – Voki schickt nichts ins Internet.
+
+1. **Stift-Fläche**: die eingebaute *Handwriting Recognition API* des Browsers – derzeit in manchen
+   Chromium-Browsern (z. B. Chrome auf Android/ChromeOS). Man schreibt auf die Zeichenfläche.
+2. **Schreibfeld auf dem iPad**: Hier gibt es diese Schnittstelle nicht. Stattdessen zeigt Voki ein großes Schreibfeld,
+   in das man mit dem **Apple Pencil** schreibt; iPadOS erkennt die Schrift selbst auf dem iPad
+   (Funktion „Handschrift“/Scribble, einschalten unter *Einstellungen ➜ Apple Pencil*).
+3. Auf allen anderen Geräten wird **getippt**.
 
 In den Einstellungen gibt es zwei Prüfstufen:
 - **Streng** (Standard): Nur das, was die Erkennung als wahrscheinlichstes Wort gelesen hat, zählt –

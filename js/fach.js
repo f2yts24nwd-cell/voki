@@ -201,7 +201,7 @@ export function renderQuiz(app, [a, b, c], ctx) {
     });
   }
 
-  const f = FAECHER[a];
+  const f = Object.hasOwn(FAECHER, a) ? FAECHER[a] : null;
   if (!f) { ctx.go('#/'); return undefined; }
   ctx.setSubject(f.id);
 
