@@ -2,7 +2,11 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v14';
+const VERSION = 'voki-v17';
+// Große Zusatzdateien in vendor/ – Texterkennung (vendor/tesseract, ca. 5–7 MB) und Prüf-Wörterbücher
+// (vendor/dict, ca. 2 + 1 MB): werden erst beim ersten Benutzen geladen und dann in einem eigenen
+// Speicher behalten. Bei neuen Dateien dort OCR_CACHE erhöhen.
+const OCR_CACHE = 'voki-vendor-2';
 const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
@@ -27,6 +31,9 @@ const FILES = [
   'js/bio-data.js',
   'js/geo-data.js',
   'js/maps.js',
+  'js/photo-import.js',
+  'js/ocr-table.js',
+  'js/vocab-check.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -45,7 +52,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== OCR_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -55,6 +62,19 @@ self.addEventListener('fetch', (e) => {
   // Nur eigene Dateien
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   url.hash = '';
+
+  // Texterkennung und Wörterbücher: zuerst aus dem Speicher, sonst laden und merken
+  if (url.pathname.includes('/vendor/')) {
+    e.respondWith((async () => {
+      const cache = await caches.open(OCR_CACHE);
+      const hit = await cache.match(url.href, { ignoreSearch: true });
+      if (hit) return hit;
+      const res = await fetch(url.href);
+      if (res.ok) await cache.put(url.href, res.clone());
+      return res;
+    })());
+    return;
+  }
 
   const network = fetch(url.href, { cache: 'no-cache' }).then((res) => {
     if (res.ok) {

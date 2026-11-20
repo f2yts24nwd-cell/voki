@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 14;
+const APP_VERSION = 17;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -827,6 +827,12 @@ function pick(arr) {
 
 // ---------- Eigene Liste ----------
 
+// Wörter aus Foto-Import/Prüfung ➜ Zeilen fürs Wörterfeld ("fremd = deutsch = hinweis")
+function toLines(words) {
+  const safe = (t) => String(t || '').replace(/\s*;\s*/g, ', ').replace(/=/g, ':').replace(/\s+/g, ' ').trim();
+  return words.map((w) => `${safe(w.fremd)} = ${safe(w.de)}${w.hint ? ' = ' + safe(w.hint) : ''}`).join('\n');
+}
+
 function renderEdit(list) {
   setTitle(list ? list.title : 'Neue Liste');
   const lang = list?.lang || store.settings.subject;
@@ -841,6 +847,10 @@ function renderEdit(list) {
         ${Object.entries(LANGUAGES).map(([code, l]) => `<label class="choice"><input type="radio" name="lang" value="${code}" ${code === lang ? 'checked' : ''}> ${l.flag} ${l.name}</label>`).join('')}
       </fieldset>
       <label>Symbol<input name="emoji" maxlength="4" value="${esc(list?.emoji || '📘')}"></label>
+      <div class="row">
+        <button class="btn photo-btn" type="button" id="photo">📷 Vokabeln aus dem Buch fotografieren</button>
+        <button class="btn photo-btn" type="button" id="checkWords">🔍 Wörter prüfen</button>
+      </div>
       <label>Wörter – eins pro Zeile: <code>fremdsprache = deutsch</code>
         <textarea name="words" rows="14" placeholder="${lang === 'fr' ? 'la ville = die Stadt&#10;le cinéma = das Kino&#10;souvent = oft' : 'zoo keeper = Tierpfleger/in&#10;giraffe = Giraffe&#10;feed = füttern'}">${esc(list ? wordsToLines(list.words) : '')}</textarea>
       </label>
@@ -852,6 +862,37 @@ function renderEdit(list) {
     </form>
   `;
   const form = document.getElementById('form');
+  document.getElementById('photo').addEventListener('click', async () => {
+    const { openPhotoImport } = await import('./photo-import.js');
+    const fdLang = new FormData(form).get('lang');
+    openPhotoImport({
+      lang: has(LANGUAGES, fdLang) ? fdLang : 'en',
+      onAdd: (words) => {
+        const ta = form.elements.words;
+        const lines = toLines(words);
+        ta.value = ta.value.trim() ? `${ta.value.replace(/\s+$/, '')}\n${lines}` : lines;
+        ta.scrollTop = ta.scrollHeight;
+        const title = form.elements.title;
+        if (!title.value.trim()) title.focus();
+      },
+    });
+  });
+  document.getElementById('checkWords').addEventListener('click', async () => {
+    const { openPhotoImport } = await import('./photo-import.js');
+    const fdLang = new FormData(form).get('lang');
+    const ta = form.elements.words;
+    const words = parseWordLines(ta.value).map((w) => ({ fremd: w.en, de: w.de, hint: w.hint }));
+    if (!words.length) {
+      alert('Trag zuerst Wörter ein (oder fotografiere sie), dann kann Voki sie prüfen.');
+      return;
+    }
+    openPhotoImport({
+      lang: has(LANGUAGES, fdLang) ? fdLang : 'en',
+      words,
+      // Die geprüfte Liste ersetzt den Inhalt des Wörterfelds
+      onAdd: (checked) => { ta.value = toLines(checked); },
+    });
+  });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(form);

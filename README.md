@@ -44,6 +44,7 @@ und Voki erkennt die Handschrift und prüft, ob es richtig geschrieben ist.
 - Französische Nomen in Farbe: männlich blau, weiblich rot (wie im Vokabelheft)
 - Französisch: Akzente zählen mit (é ≠ e), beim Tippen gibt es eine Akzent-Leiste
 - **Eigene Listen** für die Wörter aus dem Schulbuch (z. B. „Unit 3“) – einfach `englisch = deutsch` pro Zeile
+- **📷 Vokabeln fotografieren**: Vokabelliste aus dem Buch abfotografieren, statt sie abzutippen (siehe unten)
 - **Handschrifterkennung** für Apple Pencil, Android-Stift, Finger oder Maus
 - **Neue Wörter einprägen**: neues Wort wird gezeigt, vorgelesen und einmal abgeschrieben
 - **Fehler abschreiben**: Bei einem Fehler werden die falschen Buchstaben markiert, danach schreibt man das Wort richtig ab
@@ -92,6 +93,81 @@ In den Einstellungen gibt es zwei Prüfstufen:
 
 Falls die Schrift mal falsch gelesen wird, kann man „Ich hatte es richtig“ antippen.
 
+## 📷 Vokabeln fotografieren
+
+Unter *Neue Liste* (oder *Liste bearbeiten*) gibt es den Knopf **„Vokabeln aus dem Buch fotografieren“**:
+
+1. Foto aufnehmen (oder aus den Fotos wählen) – auf dem iPad öffnet sich direkt die Kamera.
+2. Rahmen an den Ecken auf die Vokabelliste ziehen, bei Bedarf **drehen**.
+3. **Text erkennen** – Voki liest die Seite und baut daraus eine Tabelle.
+4. Prüfen: Zu jedem Eintrag wird der passende Streifen aus dem Foto angezeigt; schwer lesbare Felder sind gelb.
+   Zeilen lassen sich korrigieren, löschen, mit der Zeile darüber verbinden oder neu hinzufügen.
+   Bei Büchern mit drei Spalten (Wort · Beispielsatz · Deutsch) kann man unter „Spalten zuordnen“ wählen,
+   welche Spalte was ist – der Beispielsatz kann als Hinweis mitgenommen werden.
+5. **Übernehmen** – die Wörter landen im Wörterfeld (`fremdsprache = deutsch`) und können noch bearbeitet werden.
+
+**Technik:** Die Texterkennung ist [Tesseract.js](https://github.com/naptha/tesseract.js) 6.0.1 (Apache-2.0-Lizenz,
+WebAssembly). Sie liegt komplett in `vendor/tesseract/` und läuft **nur auf dem Gerät** – das Foto wird nirgendwohin
+geschickt, es gibt keinen Server, kein Konto und keine Lizenzkosten.
+
+- Sprachdaten: `eng`, `fra`, `deu` (Variante *best_int*), erkannt wird immer zusammen mit Deutsch (`deu+eng` bzw. `deu+fra`),
+  damit Umlaute und Akzente stimmen.
+- Beim ersten Benutzen werden ca. 5 MB geladen (Programm + zwei Sprachen), der Service Worker speichert sie in einem
+  eigenen Speicher (`voki-ocr-1`). Danach geht es auch offline. Wer die Erkennung nie benutzt, lädt nichts davon.
+- Vorbereitung des Bildes (`prepare` in `js/photo-import.js`): Graustufen über den dunkelsten Farbkanal (rote Artikel
+  und blaue Bedeutungen werden kräftig, farbig hinterlegte Spalten hell), Kontrast strecken, auf ca. 2400 px vergrößern
+  und die **Tabellenlinien entfernen** – sie berühren bei schrägen Fotos die Buchstaben (aus „le“ wird sonst „je“).
+  Tesseract läuft mit Seitenmodus 4 und Sauvola-Schwellenwert (kommt mit Schatten zurecht).
+- `js/ocr-table.js` macht daraus die Tabelle:
+  - **Spalten** über Häufungen gleicher Wortanfänge (die Spalten im Vokabelteil sind linksbündig),
+  - **Zeilen** je Spalte und dann ein **Abgleich der Spalten der Reihe nach** (wie beim Vergleichen zweier Listen,
+    mit geschätztem Höhenversatz) – so passt die Zuordnung auch bei gewölbten oder schräg fotografierten Seiten,
+  - Krümel (Linienreste) werden über die Erkennungs-Sicherheit aussortiert,
+  - Säubern: Lautschrift `[…]`, Grammatik-Kürzel (`m.`, `adj.`, `fam.`, `(pl)` …) und Randnummern weg,
+    „ja ville [lavil]“ ➜ „la ville“ (Lautschrift beginnt mit „l“), umgebrochene Bedeutungen an den Eintrag darüber.
+- Getestet mit Fotos aus *Découvertes* und *Green Line*: Eine gerade fotografierte Einzelseite wird fast vollständig
+  richtig gelesen; einzelne Fehler (fehlendes Leerzeichen, falscher Buchstabe) korrigiert man in der Prüf-Tabelle.
+  Stark gewölbte Seitenbereiche und ganze Doppelseiten gehen deutlich schlechter.
+- Tesseract.js aktualisieren: Dateien aus den npm-Paketen `tesseract.js` (`dist/tesseract.esm.min.js`, `dist/worker.min.js`),
+  `tesseract.js-core` (`tesseract-core-simd-lstm.*`, `tesseract-core-lstm.*`) und `@tesseract.js-data/<sprache>`
+  (`4.0.0_best_int/*.traineddata.gz`) kopieren und `OCR_CACHE` in `sw.js` erhöhen.
+
+## 🔍 Wörter prüfen (Wörterbuch)
+
+Nach dem Fotografieren – und im Listen-Editor über **„🔍 Wörter prüfen“** auch für abgetippte Listen – vergleicht Voki
+jeden Eintrag mit einem offenen Wörterbuch:
+
+| Prüfung | Beispiel |
+| --- | --- |
+| Rechtschreibung Fremdsprache | „hospitl“ ➜ „hospital“, „le cinema“ ➜ „le cinéma“, „lethéâtre“ ➜ „le théâtre“ |
+| Übersetzung | passt „schön“ zu „beautiful“? Sonst: „Das Wörterbuch kennt andere Bedeutungen: …“ |
+| Rechtschreibung Deutsch | „schon“ ➜ „schön“, „gefahrlich“ ➜ „gefährlich“, „Backerei“ ➜ „Bäckerei“ |
+| Artikel | „le ville“ ➜ „la ville“ (Geschlecht), „der Kino“ ➜ „das Kino“ |
+
+Jede Zeile bekommt ✓ (passt), ⚠️ (bitte prüfen, mit Vorschlag zum Antippen), ℹ️ (das Buch übersetzt anders als das
+Wörterbuch – das ist oft in Ordnung) oder ? (nicht im Wörterbuch). Das Buch hat immer recht: Die Prüfung macht nur
+Vorschläge.
+
+**Quelle:** Wiktionary – deutsches Wiktionary (deutsche Bedeutungen englischer und französischer Wörter) und
+englisches Wiktionary (Übersetzungstabellen; Französisch ↔ Deutsch über dieselbe englische Bedeutung), aufbereitet von
+wiktextract/kaikki.org. Lizenz **CC BY-SA 4.0**, Details in `vendor/dict/LICENSE.md`. Dialekte, veraltete, vulgäre und
+abwertende Einträge sind herausgefiltert.
+
+- Englisch: ca. 69 000 Wörter (2,1 MB), Französisch: ca. 62 000 Wörter (1,3 MB) – werden erst beim ersten Prüfen
+  geladen und vom Service Worker gespeichert, danach offline.
+- An den eingebauten Voki-Listen gemessen: 306 von 321 englischen und 89 von 112 französischen Einträgen „passen“,
+  nur 1 Fehlalarm (⚠️ bei einem richtigen Wort); der Rest ist ℹ️/?, z. B. freie Übersetzungen wie „flat = Wohnung“.
+- Neu bauen (z. B. mit neueren Wiktionary-Daten):
+  ```bash
+  curl -O https://kaikki.org/dewiktionary/Englisch/kaikki.org-dictionary-Englisch.jsonl
+  curl -O https://kaikki.org/dewiktionary/Franz%C3%B6sisch/kaikki.org-dictionary-Franz%C3%B6sisch.jsonl
+  curl -sS https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl.gz \
+    | gunzip | python3 -I tools/extract-enwiktionary.py > enwikt-de-fr.jsonl     # ca. 530 MB, gestreamt
+  python3 -I tools/build-dict.py kaikki.org-dictionary-Englisch.jsonl \
+    kaikki.org-dictionary-Französisch.jsonl enwikt-de-fr.jsonl
+  ```
+  Danach `OCR_CACHE` in `sw.js` erhöhen.
+
 ## Starten
 
 Es gibt keinen Build-Schritt – es sind nur statische Dateien.
@@ -130,6 +206,12 @@ npx http-server -c-1 .
 | `js/bio-data.js` | Bio-Themen, Forscher-Wissen, Fragen und Forscher-Aufträge |
 | `js/geo-data.js` | Erdkunde-Themen, Fragen, Karten- und Diagramm-Aufgaben |
 | `js/maps.js` | Stumme Karten, Klimadiagramm und Gezeitenkurve (SVG) |
+| `js/photo-import.js` | Vokabeln fotografieren: Foto, Zuschneiden, Texterkennung, Prüf-Tabelle |
+| `js/ocr-table.js` | Erkannte Wörter ➜ Zeilen, Spalten und Vokabel-Einträge |
+| `js/vocab-check.js` | Wörter gegen das Wörterbuch prüfen (Rechtschreibung, Übersetzung, Artikel) |
+| `vendor/tesseract/` | Texterkennung Tesseract.js (Apache-2.0, siehe `LICENSE` dort) mit Sprachdaten |
+| `vendor/dict/` | Prüf-Wörterbücher aus dem Wiktionary (CC BY-SA 4.0, siehe `LICENSE.md` dort) |
+| `tools/` | Skripte zum Bauen der Wörterbücher |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
 
 Wenn du Dateien änderst, in `sw.js` die `VERSION` und in `js/app.js` die `APP_VERSION` erhöhen. Die Versionsnummer steht unten in den Einstellungen.
