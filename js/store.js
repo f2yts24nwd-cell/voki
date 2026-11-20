@@ -11,7 +11,7 @@ export const MAX_BOX = INTERVALS.length - 1;
 export const DEFAULT_SETTINGS = {
   subject: 'en',           // aktuelles Fach: 'en' | 'fr'
   direction: 'de-en',      // 'de-en' = Deutsch ➜ Fremdsprache | 'en-de' = umgekehrt | 'mixed'
-  engine: 'auto',          // 'auto' (Handschrift, wenn das Gerät sie selbst erkennt) | 'keyboard'
+  engine: 'auto',          // 'auto' (Handschrift, wenn das Gerät sie selbst erkennt) | 'local' (Voki-Erkennung, Test) | 'keyboard'
   tolerance: 1,            // 1 = streng (nur bestes Ergebnis zählt), 3 = großzügig
   caseSensitive: false,
   penOnly: 'auto',         // 'auto' | 'on' | 'off'
@@ -35,7 +35,7 @@ function cleanSettings(s) {
     subject: Object.hasOwn(LANGUAGES, s.subject) ? s.subject : d.subject,
     direction: oneOf(s.direction, ['de-en', 'en-de', 'mixed'], d.direction),
     // frühere Werte 'native' und 'google' -> 'auto' (nur noch Erkennung auf dem Gerät)
-    engine: oneOf(s.engine, ['auto', 'keyboard'], d.engine),
+    engine: oneOf(s.engine, ['auto', 'local', 'keyboard'], d.engine),
     tolerance: oneOf(s.tolerance, [1, 3], d.tolerance),
     caseSensitive: s.caseSensitive === true,
     penOnly: oneOf(s.penOnly, ['auto', 'on', 'off'], d.penOnly),

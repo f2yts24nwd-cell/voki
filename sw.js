@@ -2,8 +2,9 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v17';
-// Große Zusatzdateien in vendor/ – Texterkennung (vendor/tesseract, ca. 5–7 MB) und Prüf-Wörterbücher
+const VERSION = 'voki-v18';
+// Große Zusatzdateien in vendor/ – Texterkennung (vendor/tesseract, ca. 5–7 MB), Voki-Handschrifterkennung
+// (vendor/paddle, ca. 31 MB, Test-Option) und Prüf-Wörterbücher
 // (vendor/dict, ca. 2 + 1 MB): werden erst beim ersten Benutzen geladen und dann in einem eigenen
 // Speicher behalten. Bei neuen Dateien dort OCR_CACHE erhöhen.
 const OCR_CACHE = 'voki-vendor-2';
@@ -16,6 +17,7 @@ const FILES = [
   'js/app.js',
   'js/pad.js',
   'js/recognizer.js',
+  'js/local-ink.js',
   'js/check.js',
   'js/store.js',
   'js/vocab.js',

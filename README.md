@@ -84,7 +84,19 @@ Die Handschrift wird **nur auf dem Gerät** erkannt – Voki schickt nichts ins 
 2. **Schreibfeld auf dem iPad**: Hier gibt es diese Schnittstelle nicht. Stattdessen zeigt Voki ein großes Schreibfeld,
    in das man mit dem **Apple Pencil** schreibt; iPadOS erkennt die Schrift selbst auf dem iPad
    (Funktion „Handschrift“/Scribble, einschalten unter *Einstellungen ➜ Apple Pencil*).
-3. Auf allen anderen Geräten wird **getippt**.
+3. **🧪 Voki-Erkennung (Test)** – für das iPad und alle Geräte ohne eingebaute Erkennung, in den Einstellungen
+   unter „Handschrifterkennung“ einschaltbar. Man schreibt wie bei 1. auf die Schreibfläche – das ganze Wort oder
+   den ganzen Satz, ohne dass zwischendurch etwas umgewandelt wird – und kann mit ↶ und 🗑️ korrigieren.
+   Erkannt wird erst bei **„Prüfen“**. Die Striche werden dafür als Bild gezeichnet und vom Texterkennungs-Modell
+   **PP-OCRv5 mobile** ([PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR), Apache-2.0) gelesen, das mit
+   [ONNX Runtime Web](https://onnxruntime.ai/) 1.31.1 (MIT) im Browser läuft (`js/local-ink.js`, `vendor/paddle/`).
+   Beim ersten Benutzen werden ca. 18 MB geladen (gepackt; 31 MB entpackt), danach geht es offline.
+   Nur lateinische Buchstaben mit Akzenten/Umlauten, Ziffern und Satzzeichen werden zugelassen; ist die Antwort
+   ein einzelnes Wort, werden Lücken in der Schrift nicht als Leerzeichen gelesen.
+   *Test mit generierter Schrift (5 Schreibstile, 220 Wörter/Sätze EN+FR):* streng 81 %, großzügig 87 % erkannt;
+   von 24 absichtlich falsch geschriebenen Wörtern wurden 23 genau so falsch gelesen (wichtig für die Rechtschreibprüfung).
+   Mit echter Kinderschrift ist das noch nicht ausprobiert – deshalb „Test“.
+4. Auf allen anderen Geräten wird **getippt**.
 
 In den Einstellungen gibt es zwei Prüfstufen:
 - **Streng** (Standard): Nur das, was die Erkennung als wahrscheinlichstes Wort gelesen hat, zählt –
@@ -193,7 +205,8 @@ npx http-server -c-1 .
 | `index.html`, `styles.css` | Seite und Design |
 | `js/app.js` | Bildschirme, Lernablauf |
 | `js/pad.js` | Schreibfläche (Pointer Events, Stift/Finger) |
-| `js/recognizer.js` | Handschrifterkennung |
+| `js/recognizer.js` | Handschrifterkennung (Auswahl der Eingabeart) |
+| `js/local-ink.js` | Voki-Erkennung (Test): Striche ➜ Bild ➜ PP-OCRv5 |
 | `js/check.js` | Vergleich Antwort ↔ Lösung, Fehlermarkierung |
 | `js/store.js` | Speicherung, Karteikasten, eigene Listen |
 | `js/vocab.js` | Englische Wortlisten, Sprachen, Zusammenführung aller Listen |
@@ -210,6 +223,7 @@ npx http-server -c-1 .
 | `js/ocr-table.js` | Erkannte Wörter ➜ Zeilen, Spalten und Vokabel-Einträge |
 | `js/vocab-check.js` | Wörter gegen das Wörterbuch prüfen (Rechtschreibung, Übersetzung, Artikel) |
 | `vendor/tesseract/` | Texterkennung Tesseract.js (Apache-2.0, siehe `LICENSE` dort) mit Sprachdaten |
+| `vendor/paddle/` | Voki-Erkennung: ONNX Runtime Web (MIT) und PP-OCRv5-mobile-Modell (Apache-2.0), Lizenzen dort |
 | `vendor/dict/` | Prüf-Wörterbücher aus dem Wiktionary (CC BY-SA 4.0, siehe `LICENSE.md` dort) |
 | `tools/` | Skripte zum Bauen der Wörterbücher |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
