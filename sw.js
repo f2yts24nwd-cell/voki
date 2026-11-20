@@ -2,7 +2,7 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v15';
+const VERSION = 'voki-v16';
 // Texterkennung für Fotos (vendor/tesseract, ca. 5–7 MB): wird erst beim ersten Benutzen geladen
 // und dann in einem eigenen Speicher behalten. Die Dateien ändern sich nie – bei einem Update
 // von Tesseract.js den Ordner umbenennen oder OCR_CACHE erhöhen.

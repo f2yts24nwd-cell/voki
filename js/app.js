@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 
 // ---------- Hilfsfunktionen ----------
 

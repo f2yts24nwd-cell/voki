@@ -114,8 +114,20 @@ geschickt, es gibt keinen Server, kein Konto und keine Lizenzkosten.
   damit Umlaute und Akzente stimmen.
 - Beim ersten Benutzen werden ca. 5 MB geladen (Programm + zwei Sprachen), der Service Worker speichert sie in einem
   eigenen Speicher (`voki-ocr-1`). Danach geht es auch offline. Wer die Erkennung nie benutzt, lädt nichts davon.
-- Aus den Wort-Positionen errechnet `js/ocr-table.js` Zeilen und Spalten (inkl. Ausgleich einer leichten Schräglage),
-  entfernt Lautschrift in `[…]` und hängt umgebrochene Bedeutungen an den richtigen Eintrag an.
+- Vorbereitung des Bildes (`prepare` in `js/photo-import.js`): Graustufen über den dunkelsten Farbkanal (rote Artikel
+  und blaue Bedeutungen werden kräftig, farbig hinterlegte Spalten hell), Kontrast strecken, auf ca. 2400 px vergrößern
+  und die **Tabellenlinien entfernen** – sie berühren bei schrägen Fotos die Buchstaben (aus „le“ wird sonst „je“).
+  Tesseract läuft mit Seitenmodus 4 und Sauvola-Schwellenwert (kommt mit Schatten zurecht).
+- `js/ocr-table.js` macht daraus die Tabelle:
+  - **Spalten** über Häufungen gleicher Wortanfänge (die Spalten im Vokabelteil sind linksbündig),
+  - **Zeilen** je Spalte und dann ein **Abgleich der Spalten der Reihe nach** (wie beim Vergleichen zweier Listen,
+    mit geschätztem Höhenversatz) – so passt die Zuordnung auch bei gewölbten oder schräg fotografierten Seiten,
+  - Krümel (Linienreste) werden über die Erkennungs-Sicherheit aussortiert,
+  - Säubern: Lautschrift `[…]`, Grammatik-Kürzel (`m.`, `adj.`, `fam.`, `(pl)` …) und Randnummern weg,
+    „ja ville [lavil]“ ➜ „la ville“ (Lautschrift beginnt mit „l“), umgebrochene Bedeutungen an den Eintrag darüber.
+- Getestet mit Fotos aus *Découvertes* und *Green Line*: Eine gerade fotografierte Einzelseite wird fast vollständig
+  richtig gelesen; einzelne Fehler (fehlendes Leerzeichen, falscher Buchstabe) korrigiert man in der Prüf-Tabelle.
+  Stark gewölbte Seitenbereiche und ganze Doppelseiten gehen deutlich schlechter.
 - Tesseract.js aktualisieren: Dateien aus den npm-Paketen `tesseract.js` (`dist/tesseract.esm.min.js`, `dist/worker.min.js`),
   `tesseract.js-core` (`tesseract-core-simd-lstm.*`, `tesseract-core-lstm.*`) und `@tesseract.js-data/<sprache>`
   (`4.0.0_best_int/*.traineddata.gz`) kopieren und `OCR_CACHE` in `sw.js` erhöhen.

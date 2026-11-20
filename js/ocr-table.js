@@ -22,15 +22,30 @@ const GERMAN_CHARS = /[äöüßÄÖÜ]/g;
 const FOREIGN_WORDS = /(^|[\s(])(the|a|an|to|of|sb\.?|sth\.?|is|are|you|your|le|la|les|l'|un|une|des|du|de|et|est|il|elle|je|tu|qn|qc|ce|ça)(?=$|[\s),.;])/gi;
 const FRENCH_CHARS = /[éèêàâçîïôûùœë]/g;
 
+// Typische Lesefehler, die sich aus dem Zusammenhang sicher erkennen lassen.
+function fixCommon(text) {
+  let t = String(text);
+  // Das "l" mancher Schulbuch-Schriften hat unten einen Haken und wird als "j" gelesen:
+  // "ja ville [lavil]" – beginnt die Lautschrift mit "l", war es "la"/"le".
+  t = t.replace(/^[jJ]([ae])(\s*\S+\s*[\[{(|]\s*l)/, 'l$1$2');
+  t = t.replace(/^ja\s/, 'la '); // "ja" gibt es im Französischen und Englischen nicht
+  return t;
+}
+
 // Säubert den Text einer Zelle.
 export function cleanCell(text) {
-  return String(text)
+  return fixCommon(text)
     .replace(/[’‘`´]/g, "'")
     .replace(/[„“”«»]/g, '"')
-    .replace(/\[[^\]]*\]?/g, ' ') // [ˈzuː kiːpə] – Lautschrift
+    .replace(/\[[^\]]*(\]|$)/g, ' ') // [ˈzuː kiːpə] – Lautschrift
+    .replace(/[{(|]\s*[^\s\]\[(){}]*\]/g, ' ') // falsch gelesene Klammer: {latur]
+    .replace(/^[^\[\]]*\]\s*/, '') // Rest umgebrochener Lautschrift: "sẽpatik] m./f."  ("]" steht in keiner Vokabel)
     .replace(/(^|\s)\/[^/\s][^/]*\/(?=\s|$)/g, (m) => (IPA_CHARS.test(m) ? ' ' : m)) // /ˈzuː/
+    // Grammatik-Kürzel aus dem Wörterverzeichnis (m. = männlich, adv. = Adverb, fam. = umgangssprachlich …)
+    .replace(/(^|\s)(m\.\s*\/\s*f\.|m\.|f\.|adj\.|adv\.|fam\.|inv\.|pl\.|\(p[l1I|/]\)|\(f\)|\(m\))(?=\s|$|,)/g, ' ')
     .replace(/^[\s•·▪■▶►▸→➝*–—-]+/, '') // Aufzählungszeichen, Pfeile
-    .replace(/^\d{1,3}[.)]\s+/, '') // "12. " Nummerierung
+    .replace(/^\d{1,3}[.)]?\s+(?=\D)/, '') // "12. " Nummerierung, Randnummern im Buch
+    .replace(/^['‘’`´,."]+(?=\w)/, '') // Fleck vor dem Wort
     .replace(/\s*;\s*/g, ', ') // ";" trennt in Voki den Hinweis ab
     .replace(/=/g, ':')
     .replace(/\s+/g, ' ')
@@ -64,9 +79,12 @@ export function guessRoles(table) {
   let cand = info.filter((i) => i.fill >= 0.3 && i.ipa < 0.5 && i.sentences < 0.5);
   if (cand.length < 2) cand = info.filter((i) => i.fill >= 0.3 && i.ipa < 0.5);
   if (cand.length < 2) cand = [...info];
-  // Normalfall: linke Spalte Fremdsprache, rechte Deutsch
+  // Normalfall: linke Spalte Fremdsprache, Deutsch ist die am besten gefüllte Spalte rechts davon
+  // (Beispielsätze und Bemerkungen stehen nur bei manchen Wörtern).
   let foreign = cand[0];
-  let german = cand[cand.length - 1];
+  const rest = cand.slice(1);
+  const maxFill = Math.max(...rest.map((i) => i.fill));
+  let german = rest.find((i) => i.fill >= maxFill * 0.8) || cand[cand.length - 1];
   // Ausnahme: Deutsch steht links (deutlich mehr Umlaute/deutsche Wörter)
   const lead = (i) => i.german - i.foreign;
   if (lead(foreign) > lead(german) + 0.4) [foreign, german] = [german, foreign];
@@ -85,8 +103,27 @@ export function buildTable(words) {
   const ws = words
     .map((w) => ({ ...w, text: String(w.text || '').trim() }))
     .filter((w) => w.text && w.bbox && w.bbox.x1 > w.bbox.x0 && w.bbox.y1 > w.bbox.y0)
-    // Einzelne Krümel (Schmutz, Ränder) mit sehr niedriger Sicherheit weglassen
-    .filter((w) => !(w.confidence < 30 && w.text.length <= 2 && !/[a-zà-ÿ]{2}/i.test(w.text)));
+    // Krümel (Linienreste, Schmutz, Bildränder) weglassen: kurz und unsicher erkannt
+    .filter((w) => {
+      const run = Math.max(0, ...(w.text.match(/[a-zà-ÿßœ]+/gi) || []).map((m) => m.length));
+      if (run < 2 && w.confidence < 80 && !/^[?!.,…]+$/.test(w.text)) return false;
+      if (run < 3 && w.confidence < 50) return false;
+      if (run < 4 && w.confidence < 35) return false;
+      return true;
+    });
+  // Doppelt gemeldete Stücke (ein Wort steckt fast ganz in einem anderen) weglassen
+  const area = (b) => (b.x1 - b.x0) * (b.y1 - b.y0);
+  const inside = (a, b) => {
+    const ix = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+    const iy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
+    return ix > 0 && iy > 0 ? (ix * iy) / area(a) : 0;
+  };
+  for (let i = ws.length - 1; i >= 0; i--) {
+    const t = ws[i].text.toLowerCase().replace(/[^a-zà-ÿß]/g, '');
+    const ai = area(ws[i].bbox);
+    if (ws.some((o, j) => j !== i && (area(o.bbox) > ai || (area(o.bbox) === ai && j < i)) && inside(ws[i].bbox, o.bbox) > 0.6
+      && o.text.toLowerCase().includes(t))) ws.splice(i, 1);
+  }
   if (!ws.length) return { columns: 0, rows: [], lineHeight: 0, slope: 0 };
 
   const h = median(ws.map((w) => w.bbox.y1 - w.bbox.y0)) || 10;
@@ -141,55 +178,182 @@ export function buildTable(words) {
     l.y1 = Math.max(...l.words.map((w) => (w.orig || w.bbox).y1));
   }
 
-  // ---- 2. Spalten: Lücken im senkrechten "Schatten" aller Wörter ----
-  const minX = Math.floor(Math.min(...ws.map((w) => w.bbox.x0)));
-  const maxX = Math.ceil(Math.max(...ws.map((w) => w.bbox.x1)));
-  const cover = new Uint16Array(maxX - minX + 1);
-  for (const w of ws) {
-    for (let x = Math.floor(w.bbox.x0); x < Math.ceil(w.bbox.x1); x++) cover[x - minX]++;
+  // ---- 2. Spalten ----
+  // Die Spalten im Vokabelteil sind linksbündig: Viele Zeilen beginnen an (fast) derselben Stelle.
+  // Gesucht werden deshalb Häufungen von Wortanfängen – am Zeilenanfang oder nach einer großen Lücke.
+  // (Eine durchgehend leere Lücke zwischen den Spalten gibt es bei schrägen Fotos oft nicht.)
+  const starts = [];
+  for (const l of lines) {
+    l.words.forEach((w, i) => {
+      const prev = l.words[i - 1];
+      if (!prev || w.bbox.x0 - prev.bbox.x1 > h * 1.2) starts.push(w.bbox.x0);
+    });
   }
-  // Ein paar Ausreißer (ein langer Beispielsatz ragt in die Nachbarspalte) sind erlaubt.
-  const allowed = Math.floor(lines.length * 0.06);
-  const minGap = h * 1.1;
-  let gaps = [];
-  let start = -1;
-  for (let i = 0; i <= cover.length; i++) {
-    const free = i < cover.length && cover[i] <= allowed;
-    if (free && start < 0) start = i;
-    if (!free && start >= 0) {
-      if (i - start >= minGap && start > 0) gaps.push({ x: minX + (start + i) / 2, width: i - start });
-      start = -1;
+  starts.sort((p, q) => p - q);
+  let clusters = [];
+  for (const x of starts) {
+    const cl = clusters[clusters.length - 1];
+    if (cl && x - cl[cl.length - 1] < h * 0.8) cl.push(x);
+    else clusters.push([x]);
+  }
+  const support = Math.max(2, lines.length * 0.12);
+  clusters = clusters.filter((cl) => cl.length >= support);
+  // Zu nah beieinander (weniger als 3 Zeichenhöhen)? Dann ist es dieselbe Spalte.
+  const colStarts = [];
+  for (const cl of clusters) {
+    const lo = cl[Math.floor(cl.length * 0.1)];
+    const last = colStarts[colStarts.length - 1];
+    if (last && lo - last.hi < h * 3) {
+      if (cl.length > last.n) Object.assign(last, { lo, hi: cl[cl.length - 1], n: cl.length });
+    } else {
+      colStarts.push({ lo, hi: cl[cl.length - 1], n: cl.length });
     }
   }
-  // Höchstens 5 Spalten – die breitesten Lücken gewinnen
-  if (gaps.length > 4) gaps = gaps.sort((a, b) => b.width - a.width).slice(0, 4);
-  // Lücken, die kaum eine Zeile wirklich trennen (Wörter auf beiden Seiten), zählen nicht
-  gaps = gaps.filter((g) => {
-    const split = lines.filter((l) => l.words.some((w) => w.bbox.x1 <= g.x) && l.words.some((w) => w.bbox.x0 >= g.x)).length;
-    return split >= Math.max(1, lines.length * 0.2);
-  });
-  const cuts = gaps.map((g) => g.x).sort((a, b) => a - b);
+  // Die erste Spalte beginnt links; Spaltengrenze knapp vor jedem weiteren Spaltenanfang
+  const cuts = colStarts.slice(1).map((c) => c.lo - h * 0.4);
   const columnOf = (w) => {
-    const xc = (w.bbox.x0 + w.bbox.x1) / 2;
     let c = 0;
-    while (c < cuts.length && xc > cuts[c]) c++;
+    while (c < cuts.length && w.bbox.x0 >= cuts[c]) c++;
     return c;
   };
-
-  // ---- 3. Zellen ----
   const columns = cuts.length + 1;
-  const rows = lines.map((l) => {
-    const cells = Array.from({ length: columns }, () => ({ words: [] }));
-    for (const w of l.words) cells[columnOf(w)].words.push(w);
-    return {
-      y0: l.y0,
-      y1: l.y1,
-      cells: cells.map((c) => ({
-        raw: c.words.map((w) => w.text).join(' '),
-        low: c.words.some((w) => w.confidence < 70),
-      })),
-    };
+
+  // ---- 3. Textzeilen je Spalte ----
+  // Jede Spalte wird für sich in Zeilen zerlegt (innerhalb einer Spalte stört die Schräglage kaum).
+  const cols = Array.from({ length: columns }, () => []);
+  for (const w of ws) w.col = columnOf(w);
+  for (let c = 0; c < columns; c++) {
+    const cw = ws.filter((w) => w.col === c).sort((x, y) => x.yc - y.yc);
+    for (const w of cw) {
+      const it = cols[c][cols[c].length - 1];
+      if (it && Math.abs(w.yc - it.y) < h * 0.5) {
+        it.words.push(w);
+        it.y = it.words.reduce((sum, x) => sum + x.yc, 0) / it.words.length;
+      } else {
+        cols[c].push({ y: w.yc, words: [w] });
+      }
+    }
+  }
+
+  // ---- 4. Spalten nebeneinanderlegen ----
+  // Ist die Seite gewölbt oder schräg fotografiert, steht die deutsche Bedeutung nicht exakt auf
+  // gleicher Höhe wie das Fremdwort. Deshalb werden die Zeilen jeder Spalte der Reihe nach mit der
+  // Hauptspalte abgeglichen (wie beim Vergleichen zweier Listen): Die Reihenfolge bleibt erhalten,
+  // und ein langsam wachsender Höhenversatz wird mitgeschätzt.
+  const most = Math.max(...cols.map((c) => c.length));
+  const anchor = cols.findIndex((c) => c.length >= most * 0.6);
+  const A = cols[anchor];
+  const diffs = [];
+  for (let i = 1; i < A.length; i++) if (A[i].y - A[i - 1].y > h * 0.8) diffs.push(A[i].y - A[i - 1].y);
+  const pitch = Math.max(h * 1.3, median(diffs) || h * 2);
+
+  const align = (B, offsetAt) => {
+    // dp[i][j]: kleinste Kosten für A[0..i) und B[0..j)
+    const n = A.length;
+    const m = B.length;
+    const SKIP = 0.45;
+    const dp = Array.from({ length: n + 1 }, () => new Float64Array(m + 1).fill(Infinity));
+    const how = Array.from({ length: n + 1 }, () => new Uint8Array(m + 1));
+    dp[0][0] = 0;
+    for (let i = 0; i <= n; i++) {
+      for (let j = 0; j <= m; j++) {
+        const cur = dp[i][j];
+        if (cur === Infinity) continue;
+        if (i < n && cur + SKIP < dp[i + 1][j]) { dp[i + 1][j] = cur + SKIP; how[i + 1][j] = 1; }
+        if (j < m && cur + SKIP < dp[i][j + 1]) { dp[i][j + 1] = cur + SKIP; how[i][j + 1] = 2; }
+        if (i < n && j < m) {
+          const d = (A[i].y - B[j].y - offsetAt(A[i].y)) / pitch;
+          if (Math.abs(d) < 0.7) {
+            const cost = cur + d * d;
+            if (cost < dp[i + 1][j + 1]) { dp[i + 1][j + 1] = cost; how[i + 1][j + 1] = 3; }
+          }
+        }
+      }
+    }
+    const pairs = [];
+    for (let i = n, j = m; i > 0 || j > 0;) {
+      const k = how[i][j];
+      if (k === 3) { pairs.push([i - 1, j - 1]); i--; j--; } else if (k === 1) i--; else j--;
+    }
+    return { pairs: pairs.reverse(), cost: dp[n][m] };
+  };
+
+  const match = cols.map(() => new Map()); // Spalte -> (Index in A -> Index in B)
+  const offsets = cols.map(() => () => 0);
+  for (let c = 0; c < columns; c++) {
+    if (c === anchor) continue;
+    const B = cols[c];
+    // 1. Grob: den besten Versatz suchen – gleichbleibend oder gleichmäßig wachsend
+    //    (höchstens eine gute halbe Zeile, über die ganze Höhe höchstens eine Zeile Unterschied)
+    const yMid = (A[0].y + A[A.length - 1].y) / 2;
+    const span = Math.max(1, A[A.length - 1].y - A[0].y);
+    let best = null;
+    for (let k = -6; k <= 6; k++) {
+      for (let t = -4; t <= 4; t++) {
+        const d0 = (k / 10) * pitch;
+        const slope = ((t / 4) * pitch) / span;
+        const r = align(B, (y) => d0 + slope * (y - yMid));
+        if (!best || r.cost < best.cost) best = r;
+      }
+    }
+    let pairs = best.pairs;
+    // 2. Versatz als Gerade über die Seite (schräg fotografiert), 3. örtlich verfeinert (gewölbte Seite)
+    if (pairs.length >= 3) {
+      const pts = pairs.map(([i, j]) => [A[i].y, A[i].y - B[j].y]);
+      const mx = pts.reduce((sum, p) => sum + p[0], 0) / pts.length;
+      const my = pts.reduce((sum, p) => sum + p[1], 0) / pts.length;
+      let num = 0;
+      let den = 0;
+      for (const [x, y] of pts) { num += (x - mx) * (y - my); den += (x - mx) ** 2; }
+      const b = den ? num / den : 0;
+      const line = (y) => my + b * (y - mx);
+      offsets[c] = line;
+      pairs = align(B, line).pairs;
+    }
+    if (pairs.length >= 5) {
+      const pts = pairs.map(([i, j]) => [A[i].y, A[i].y - B[j].y]);
+      const local = (y) => median([...pts].sort((p, q) => Math.abs(p[0] - y) - Math.abs(q[0] - y)).slice(0, 5).map((p) => p[1]));
+      const r = align(B, local);
+      if (r.pairs.length >= pairs.length) { pairs = r.pairs; offsets[c] = local; }
+    }
+    for (const [i, j] of pairs) match[c].set(i, j);
+  }
+
+  // ---- 5. Tabellenzeilen ----
+  const rows = [];
+  const used = cols.map(() => new Set());
+  const cell = (its) => {
+    const wsOf = its.flatMap((it) => it.words).sort((x, y) => x.bbox.x0 - y.bbox.x0);
+    // Gelb markieren nur, wenn ein Wort unsicher ist, das auch übrig bleibt (nicht die Lautschrift)
+    const low = wsOf.some((w) => w.confidence < 70 && !/[[\]{}]/.test(w.text) && cleanCell(w.text));
+    return { raw: wsOf.map((w) => w.text).join(' '), low };
+  };
+  const box = (its) => {
+    const all = its.flatMap((it) => it.words).map((w) => w.orig || w.bbox);
+    return { y0: Math.min(...all.map((b) => b.y0)), y1: Math.max(...all.map((b) => b.y1)) };
+  };
+  A.forEach((it, i) => {
+    const parts = Array.from({ length: columns }, () => []);
+    parts[anchor].push(it);
+    for (let c = 0; c < columns; c++) {
+      if (c === anchor || !match[c].has(i)) continue;
+      const j = match[c].get(i);
+      parts[c].push(cols[c][j]);
+      used[c].add(j);
+    }
+    rows.push({ y: it.y, ...box(parts.flat()), cells: parts.map(cell) });
   });
+  // Zeilen der anderen Spalten ohne Partner (z. B. umgebrochene Bedeutung) als eigene Zeile
+  for (let c = 0; c < columns; c++) {
+    if (c === anchor) continue;
+    cols[c].forEach((it, j) => {
+      if (used[c].has(j)) return;
+      const parts = Array.from({ length: columns }, () => []);
+      parts[c].push(it);
+      rows.push({ y: it.y + offsets[c](it.y), ...box([it]), cells: parts.map(cell) });
+    });
+  }
+  rows.sort((p, q) => p.y - q.y);
 
   const table = { columns, rows, lineHeight: h, slope };
 

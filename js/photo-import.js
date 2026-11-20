@@ -30,7 +30,7 @@ const simd = () => {
   }
 };
 
-async function getWorker(langs) {
+export async function getWorker(langs) {
   if (worker && workerLangs === langs) return worker;
   await stopWorker();
   const { createWorker } = (await import('../vendor/tesseract/tesseract.esm.min.js')).default;
@@ -44,7 +44,8 @@ async function getWorker(langs) {
     logger: (m) => onProgress(m),
   });
   await worker.setParameters({
-    tessedit_pageseg_mode: '11', // verstreuter Text: Tabellen ohne Rahmen
+    tessedit_pageseg_mode: '4', // Spalte(n) mit Textzeilen unterschiedlicher Größe
+    thresholding_method: '2', // Sauvola: kommt mit Schatten und farbig hinterlegten Spalten zurecht
     preserve_interword_spaces: '1',
     user_defined_dpi: '300',
   });
@@ -90,7 +91,7 @@ function rotate(src) {
 }
 
 // Ausschnitt in Graustufen, Kontrast gestreckt; kleine Ausschnitte werden vergrößert.
-function prepare(src, f) {
+export function prepare(src, f) {
   const sx = Math.round(f.x0 * src.width);
   const sy = Math.round(f.y0 * src.height);
   const sw = Math.max(1, Math.round((f.x1 - f.x0) * src.width));
@@ -108,7 +109,9 @@ function prepare(src, f) {
   const d = img.data;
   const hist = new Uint32Array(256);
   for (let i = 0; i < d.length; i += 4) {
-    const g = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+    // Dunkelster Farbkanal statt Helligkeit: farbige Schrift (rote Artikel, blaue Bedeutungen)
+    // wird so kräftig dunkel, farbig hinterlegte Spalten bleiben hell.
+    const g = Math.min(d[i], d[i + 1], d[i + 2]);
     d[i] = g;
     hist[g]++;
   }
@@ -123,11 +126,75 @@ function prepare(src, f) {
     const g = Math.max(0, Math.min(255, ((d[i] - lo) * 255) / range));
     d[i] = d[i + 1] = d[i + 2] = g;
   }
+  removeRules(d, c.width, c.height);
   ctx.putImageData(img, 0, 0);
   return c;
 }
 
-function collectWords(data) {
+// Entfernt waagerechte Linien (Tabellenlinien im Vokabelteil). Sie berühren bei schräg
+// fotografierten Seiten die Buchstaben – aus "le" wird dann "je". Ein Punkt gehört zu einer
+// Linie, wenn er Teil eines langen dunklen waagerechten Strichs ist und darüber und darunter
+// hell ist; senkrechte Buchstabenteile, die die Linie kreuzen, bleiben so erhalten.
+function removeRules(d, w, h) {
+  // Dunkel = deutlich dunkler als die Umgebung (Mittelwert über ein Fenster, Integralbild)
+  const r = Math.max(8, Math.round(w / 60));
+  const integral = new Float64Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let row = 0;
+    for (let x = 0; x < w; x++) {
+      row += d[(y * w + x) * 4];
+      integral[(y + 1) * (w + 1) + x + 1] = integral[y * (w + 1) + x + 1] + row;
+    }
+  }
+  const dark = new Uint8Array(w * h);
+  const bg = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - r);
+    const y1 = Math.min(h, y + r + 1);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r);
+      const x1 = Math.min(w, x + r + 1);
+      const sum = integral[y1 * (w + 1) + x1] - integral[y0 * (w + 1) + x1] - integral[y1 * (w + 1) + x0] + integral[y0 * (w + 1) + x0];
+      const mean = sum / ((x1 - x0) * (y1 - y0));
+      dark[y * w + x] = d[(y * w + x) * 4] < mean * 0.85 ? 1 : 0;
+      bg[y * w + x] = Math.min(255, mean * 1.05);
+    }
+  }
+  const minRun = Math.max(60, Math.round(w * 0.04));
+  const k = Math.max(3, Math.round(w / 600)); // Abstand für "darüber/darunter"
+  const kill = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let start = -1;
+    for (let x = 0; x <= w; x++) {
+      const on = x < w && dark[y * w + x];
+      if (on && start < 0) start = x;
+      if (!on && start >= 0) {
+        if (x - start >= minRun) {
+          for (let i = start; i < x; i++) {
+            const up = y - k >= 0 && dark[(y - k) * w + i];
+            const down = y + k < h && dark[(y + k) * w + i];
+            if (!(up && down)) kill[y * w + i] = 1;
+          }
+        }
+        start = -1;
+      }
+    }
+  }
+  // Die Linie ist ein paar Punkte dick: Nachbarzeilen mit wegnehmen, wenn sie auch dunkel sind
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const near = kill[i] || (y > 0 && kill[i - w]) || (y + 1 < h && kill[i + w]);
+      if (near && dark[i]) {
+        const up = y - k >= 0 && dark[i - k * w];
+        const down = y + k < h && dark[i + k * w];
+        if (kill[i] || !(up && down)) d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = bg[i]; // Hintergrundfarbe
+      }
+    }
+  }
+}
+
+export function collectWords(data) {
   const out = [];
   let line = 0;
   for (const b of data.blocks || []) {
@@ -195,9 +262,10 @@ export function openPhotoImport({ lang, onAdd }) {
     body.innerHTML = `
       <p>Fotografiere die Vokabelliste aus dem ${langName}-Buch. Voki liest die Wörter und du prüfst sie danach.</p>
       <ul class="ocr-tips">
-        <li>📖 Buch flach hinlegen, <b>gerade von oben</b> fotografieren</li>
+        <li>📖 <b>Nur eine Seite</b>, nicht die ganze Doppelseite – Buch flach drücken</li>
+        <li>📐 <b>Gerade von oben</b> fotografieren, nicht schräg</li>
         <li>💡 Gutes Licht, kein Schatten vom iPad auf der Seite</li>
-        <li>✂️ Danach schneidest du die Liste zurecht</li>
+        <li>✂️ Danach schneidest du die Vokabel-Tabelle zurecht (ohne Bilder und Kästen)</li>
       </ul>
       ${error ? `<p class="ocr-error">${esc(error)}</p>` : ''}
       <label class="btn primary big ocr-file">📷 Foto aufnehmen oder auswählen
