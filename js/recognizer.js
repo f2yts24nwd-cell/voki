@@ -6,13 +6,24 @@
 // 2. "Schreibfeld" auf dem iPad: Ein großes Textfeld, in das man mit dem Apple Pencil
 //    schreibt. Die Erkennung übernimmt iPadOS selbst (Funktion „Handschrift“/Scribble,
 //    läuft auf dem iPad).
-// 3. Überall sonst: Tastatur.
+// 3. "Voki-Erkennung (Test)": wer sie in den Einstellungen einschaltet, bekommt auch ohne
+//    eingebaute Erkennung die Stift-Fläche. Erkannt wird erst beim Prüfen, mit einem Modell,
+//    das Voki selbst mitbringt (js/local-ink.js, läuft ebenfalls nur auf dem Gerät).
+// 4. Überall sonst: Tastatur.
+
+import { recognizeLocal, preloadLocal } from './local-ink.js';
 
 export class RecognitionError extends Error {}
 
 const INK_LANGS = ['en', 'fr', 'de'];
 const support = {}; // Sprache -> true/false (eingebaute Erkennung)
 const nativeCache = {};
+let localOn = false; // Einstellung "Voki-Erkennung (Test)"
+
+// Aus den Einstellungen: engine 'auto' | 'local' | 'keyboard'
+export function setEngine(engine) {
+  localOn = engine === 'local';
+}
 
 export const isIPad = () => /ipad/i.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -41,13 +52,25 @@ export const canDraw = (langs) => langs.every((l) => support[l]);
 export function inputMode(langs, engine) {
   if (engine === 'keyboard') return 'keyboard';
   if (canDraw(langs)) return 'pen';
+  if (localOn) {
+    preloadLocal();
+    return 'pen';
+  }
   if (isIPad()) return 'scribble';
   return 'keyboard';
 }
 
 // Liefert eine Liste von Kandidaten, der wahrscheinlichste zuerst.
-export async function recognize(strokes, { lang, pointerType }) {
+// oneWord: Die erwartete Antwort ist ein einzelnes Wort (hilft der Voki-Erkennung).
+export async function recognize(strokes, { lang, pointerType, oneWord = false }) {
   if (!strokes.length) return [];
+  if (!support[lang] && localOn) {
+    try {
+      return await recognizeLocal(strokes, { oneWord });
+    } catch (e) {
+      throw new RecognitionError('Die Voki-Erkennung konnte nicht geladen werden' + (navigator.onLine ? '' : ' (beim ersten Mal braucht sie Internet)') + ': ' + e.message);
+    }
+  }
   if (!support[lang]) throw new RecognitionError('Dieses Gerät kann die Handschrift nicht selbst erkennen. Bitte benutz die Tastatur.');
   try {
     if (!nativeCache[lang]) nativeCache[lang] = navigator.createHandwritingRecognizer({ languages: [lang] });

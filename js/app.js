@@ -1,6 +1,6 @@
 import { WritingPad } from './pad.js';
-import { recognize, RecognitionError, initInk, inputMode, isIPad } from './recognizer.js';
-import { check, diff } from './check.js';
+import { recognize, RecognitionError, initInk, inputMode, isIPad, canDraw, setEngine } from './recognizer.js';
+import { check, diff, variants } from './check.js';
 import {
   store, save, allLists, getList, wordsOf, listStats, dueWords, isDue, progressOf, record,
   currentStreak, saveCustomList, deleteCustomList, parseWordLines, wordsToLines,
@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -639,6 +639,7 @@ function renderPractice(listId, mode) {
           width: pad.width,
           height: pad.height,
           pointerType: pad.lastPointerType,
+          oneWord: variants(it.kind === 'intro' ? it.word.en : answerOf(it)).every((v) => !/\s/.test(v)),
         });
       } catch (e) {
         S.busy = false;
@@ -919,7 +920,7 @@ function renderEdit(list) {
 function renderSettings() {
   setTitle('Einstellungen');
   const s = store.settings;
-  const opt = (name, value, label, current) => `<label class="choice"><input type="radio" name="${name}" value="${value}" ${String(current) === String(value) ? 'checked' : ''}> ${label}</label>`;
+  const opt = (name, value, label, current) => `<label class="choice"><input type="radio" name="${name}" value="${value}" ${String(current) === String(value) ? 'checked' : ''}> <span>${label}</span></label>`;
   app.innerHTML = `
     <header class="top">
       <a class="icon-btn" href="#/" aria-label="Zurück">←</a>
@@ -948,11 +949,12 @@ function renderSettings() {
         ${opt('penOnly', 'off', 'Stift, Finger und Maus', s.penOnly)}
       </fieldset>
       <fieldset><legend>Handschrifterkennung</legend>
-        ${opt('engine', 'auto', 'Mit dem Stift schreiben, wenn das Gerät die Schrift selbst erkennen kann', s.engine)}
+        ${opt('engine', 'auto', ink.draw || !isIPad() ? 'Mit dem Stift schreiben, wenn das Gerät die Schrift selbst erkennen kann' : 'iPad-Handschrift: im Schreibfeld, das iPad wandelt beim Absetzen gleich in Text um', s.engine)}
+        ${ink.draw ? '' : opt('engine', 'local', '🧪 <b>Voki-Erkennung (Test)</b>: auf die Schreibfläche schreiben – erkannt wird erst bei „Prüfen“', s.engine)}
         ${opt('engine', 'keyboard', 'Immer mit der Tastatur tippen', s.engine)}
         <p class="muted small">🔒 Die Handschrift wird nur auf diesem Gerät erkannt – es wird nichts ins Internet geschickt.
-          ${isIPad() ? 'Auf dem iPad übernimmt das die Apple-Pencil-Funktion <b>„Handschrift“</b> (iPad-Einstellungen ➜ Apple Pencil).' : ''}
-          ${ink.draw ? 'Dieses Gerät hat eine eingebaute Handschrifterkennung. ✅' : isIPad() ? '' : 'Dieses Gerät hat keine eingebaute Handschrifterkennung – hier wird getippt.'}</p>
+          ${ink.draw ? 'Dieses Gerät hat eine eingebaute Handschrifterkennung. ✅' : isIPad() ? 'Die iPad-Handschrift ist die Apple-Pencil-Funktion <b>„Handschrift“</b> (iPad-Einstellungen ➜ Apple Pencil).' : 'Dieses Gerät hat keine eingebaute Handschrifterkennung.'}
+          ${ink.draw ? '' : 'Die Voki-Erkennung ist noch ein Test: Beim ersten Benutzen lädt sie einmalig ca. 18 MB, danach geht sie auch offline. Wenn sie ein Wort falsch liest, gibt es weiter „Ich hatte es richtig“.'}</p>
       </fieldset>
       <fieldset><legend>Sonstiges</legend>
         <label class="choice"><input type="checkbox" name="speak" ${s.speak ? 'checked' : ''}> Wörter vorlesen</label>
@@ -977,10 +979,11 @@ function renderSettings() {
       caseSensitive: fd.get('caseSensitive') === 'on',
       penOnly: fd.get('penOnly'),
       mathInput: fd.get('mathInput'),
-      engine: fd.get('engine') === 'keyboard' ? 'keyboard' : 'auto',
+      engine: ['keyboard', 'local'].includes(fd.get('engine')) ? fd.get('engine') : 'auto',
       speak: fd.get('speak') === 'on',
       sessionSize: Number(fd.get('sessionSize')),
     };
+    setEngine(store.settings.engine);
     save();
   });
   document.getElementById('reset').addEventListener('click', () => {
@@ -1013,6 +1016,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 
 // Erst nachsehen, ob das Gerät Handschrift selbst erkennen kann, dann loslegen
 initInk().catch(() => {}).finally(() => {
-  ink.draw = inputMode(['en', 'fr', 'de'], 'auto') === 'pen';
+  ink.draw = canDraw(['en', 'fr', 'de']);
+  setEngine(store.settings.engine);
   route();
 });
