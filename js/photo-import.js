@@ -8,6 +8,7 @@
 //         Tabelle prüfen und verbessern ➜ in die Liste übernehmen.
 
 import { buildTable, guessRoles, tableToEntries } from './ocr-table.js';
+import { loadDict, checkEntry } from './vocab-check.js';
 
 const BASE = new URL('../vendor/tesseract/', import.meta.url).href;
 const MAX_SIDE = 3000; // größere Fotos werden verkleinert (Speicher auf dem iPad)
@@ -219,16 +220,18 @@ const STATUS = {
 };
 
 // lang: 'en' | 'fr'. onAdd(words) bekommt [{ fremd, de, hint }].
-export function openPhotoImport({ lang, onAdd }) {
+// Mit "words" (statt Foto) öffnet sich direkt die Prüf-Tabelle für eine vorhandene Liste.
+export function openPhotoImport({ lang, onAdd, words = null }) {
+  const listMode = Array.isArray(words);
   const ocrLangs = OCR_LANGS[lang] || OCR_LANGS.en;
   const langName = lang === 'fr' ? 'Französisch' : 'Englisch';
   const prevFocus = document.activeElement;
   const el = document.createElement('div');
   el.className = 'overlay ocr';
   el.innerHTML = `
-    <div class="sheet wide" role="dialog" aria-modal="true" aria-label="Vokabeln fotografieren">
+    <div class="sheet wide" role="dialog" aria-modal="true" aria-label="${listMode ? 'Wörter prüfen' : 'Vokabeln fotografieren'}">
       <button class="icon-btn sheet-close" aria-label="Schließen">✕</button>
-      <h3 class="ocr-title">📷 Vokabeln fotografieren</h3>
+      <h3 class="ocr-title">${listMode ? '🔍 Wörter prüfen' : '📷 Vokabeln fotografieren'}</h3>
       <div class="ocr-body"></div>
     </div>`;
   document.body.appendChild(el);
@@ -425,13 +428,26 @@ export function openPhotoImport({ lang, onAdd }) {
     return c;
   }
 
+  // ---- Wörterbuch-Prüfung ----
+  let dict = null;
+  let dictState = 'loading'; // 'loading' | 'ready' | 'failed'
+  loadDict(lang).then((d) => { dict = d; dictState = 'ready'; }, () => { dictState = 'failed'; }).then(() => {
+    if (!closed) refreshChecks?.();
+  });
+  let refreshChecks = null;
+  const ICON = { ok: '✓', hint: 'ℹ️', warn: '⚠️', unknown: '?' };
+
   function stepReview() {
     const foreignLabel = lang === 'fr' ? '🇫🇷 Französisch' : '🇬🇧 Englisch';
     body.innerHTML = `
-      <p>Voki hat <b>${entries.length}</b> Einträge gefunden. Vergleich sie mit dem Foto und verbessere, was falsch ist –
+      ${listMode
+        ? `<p>Voki vergleicht jedes Wort mit einem Wörterbuch. Vorschläge kannst du mit einem Tipp übernehmen –
+            aber das Buch hat immer recht: Schulbücher übersetzen oft freier als ein Wörterbuch.</p>`
+        : `<p>Voki hat <b>${entries.length}</b> Einträge gefunden. Vergleich sie mit dem Foto und verbessere, was falsch ist –
         <mark class="ocr-low-key">gelb</mark> markierte Felder waren schwer zu lesen.
-        Zeilen ohne deutsches Wort (z. B. Überschriften) werden nicht übernommen.</p>
-      ${table.columns >= 2 ? `
+        Zeilen ohne deutsches Wort (z. B. Überschriften) werden nicht übernommen.</p>`}
+      <p class="ocr-summary small" aria-live="polite"></p>
+      ${table && table.columns >= 2 ? `
         <details class="ocr-cols" ${table.columns >= 3 ? 'open' : ''}>
           <summary>Spalten zuordnen</summary>
           <div class="ocr-roles">
@@ -443,16 +459,43 @@ export function openPhotoImport({ lang, onAdd }) {
         </details>` : ''}
       <ol class="ocr-rows"></ol>
       <button class="btn" type="button" data-act="addrow">＋ Zeile hinzufügen</button>
+      <p class="muted small">Prüfung mit einem Wörterbuch aus dem <b>Wiktionary</b> (de.wiktionary.org und en.wiktionary.org,
+        Lizenz CC BY-SA 4.0) – läuft auf diesem Gerät.</p>
       <div class="row ocr-actions">
-        <button class="btn" type="button" data-act="again">📷 Neues Foto</button>
+        ${listMode ? '<button class="btn" type="button" data-act="cancel">Abbrechen</button>' : '<button class="btn" type="button" data-act="again">📷 Neues Foto</button>'}
         <button class="btn primary" type="button" data-act="take"></button>
       </div>`;
     const list = body.querySelector('.ocr-rows');
     const takeBtn = body.querySelector('[data-act=take]');
+    const summary = body.querySelector('.ocr-summary');
     const updateCount = () => {
       const n = entries.filter((e) => e.fremd.trim() && e.de.trim()).length;
-      takeBtn.textContent = `✓ ${n} ${n === 1 ? 'Wort' : 'Wörter'} übernehmen`;
+      takeBtn.textContent = listMode ? '✓ Liste übernehmen' : `✓ ${n} ${n === 1 ? 'Wort' : 'Wörter'} übernehmen`;
       takeBtn.disabled = !n;
+    };
+    // Prüft eine Zeile und zeigt das Ergebnis darunter an
+    const showCheck = (e, box) => {
+      e.check = dict ? checkEntry(dict, lang, e.fremd, e.de) : null;
+      box.className = `ocr-check ${e.check ? e.check.status : ''}`;
+      if (!e.check) {
+        box.textContent = dictState === 'failed' ? '' : '🔍 Wörterbuch wird geladen …';
+        return;
+      }
+      if (!e.fremd.trim()) { box.textContent = ''; return; }
+      box.innerHTML = `<span class="ocr-check-icon" aria-hidden="true">${ICON[e.check.status]}</span>
+        <span>${esc(e.check.text)}</span>
+        ${e.check.fixes.map((f, j) => `<button class="btn small-btn" type="button" data-fix="${j}">${esc(f.label)} übernehmen</button>`).join('')}`;
+    };
+    const updateSummary = () => {
+      if (dictState === 'failed') {
+        summary.textContent = navigator.onLine ? 'Das Wörterbuch konnte nicht geladen werden.' : 'Für die Wörterbuch-Prüfung braucht Voki einmal Internet (ca. 2 MB).';
+        return;
+      }
+      if (!dict) { summary.textContent = '🔍 Wörterbuch wird geladen …'; return; }
+      const c = { ok: 0, hint: 0, warn: 0, unknown: 0 };
+      for (const e of entries) if (e.check && e.fremd.trim()) c[e.check.status]++;
+      summary.innerHTML = `Wörterbuch-Prüfung: <b class="ok">✓ ${c.ok} passen</b> · <b class="warn">⚠️ ${c.warn} bitte prüfen</b>
+        · ℹ️ ${c.hint} anders übersetzt · ? ${c.unknown} nicht im Wörterbuch`;
     };
     const renderRows = () => {
       list.innerHTML = '';
@@ -465,19 +508,37 @@ export function openPhotoImport({ lang, onAdd }) {
               lang="${lang}" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${langName}">
             <input aria-label="Deutsch" data-k="de" value="${esc(e.de)}" class="${e.lowDe ? 'low' : ''}"
               lang="de" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Deutsch">
-            ${roles.hint >= 0 || e.hint ? `<input aria-label="Hinweis" data-k="hint" value="${esc(e.hint)}" class="hint" placeholder="Hinweis" spellcheck="false">` : ''}
+            ${(roles && roles.hint >= 0) || e.hint ? `<input aria-label="Hinweis" data-k="hint" value="${esc(e.hint)}" class="hint" placeholder="Hinweis" spellcheck="false">` : ''}
           </div>
           <div class="ocr-row-btns">
             ${i > 0 ? '<button class="icon-btn" type="button" data-act="merge" aria-label="Mit der Zeile darüber verbinden" title="Mit der Zeile darüber verbinden">⤒</button>' : ''}
             <button class="icon-btn" type="button" data-act="del" aria-label="Zeile löschen" title="Zeile löschen">✕</button>
           </div>`;
-        if (e.y1 > e.y0) li.prepend(rowStrip(e));
+        if (crop && e.y1 > e.y0) li.prepend(rowStrip(e));
+        const box = document.createElement('div');
+        box.className = 'ocr-check';
+        box.setAttribute('aria-live', 'polite');
+        li.appendChild(box);
+        showCheck(e, box);
+        let timer = 0;
         li.addEventListener('input', (ev) => {
           const k = ev.target.dataset.k;
           if (!k) return;
           e[k] = ev.target.value;
           ev.target.classList.remove('low');
           updateCount();
+          clearTimeout(timer);
+          timer = setTimeout(() => { showCheck(e, box); updateSummary(); }, 400);
+        });
+        box.addEventListener('click', (ev) => {
+          const j = ev.target.closest('[data-fix]')?.dataset.fix;
+          const fix = j != null && e.check?.fixes[Number(j)];
+          if (!fix) return;
+          e[fix.field] = fix.value;
+          const input = li.querySelector(`[data-k=${fix.field}]`);
+          if (input) { input.value = fix.value; input.classList.remove('low'); }
+          showCheck(e, box);
+          updateSummary();
         });
         li.querySelector('[data-act=del]').addEventListener('click', () => { entries.splice(i, 1); renderRows(); });
         li.querySelector('[data-act=merge]')?.addEventListener('click', () => {
@@ -495,8 +556,10 @@ export function openPhotoImport({ lang, onAdd }) {
         list.appendChild(li);
       });
       updateCount();
+      updateSummary();
     };
     renderRows();
+    refreshChecks = renderRows;
 
     body.querySelectorAll('[data-role]').forEach((s) => s.addEventListener('change', () => {
       roles[s.dataset.role] = Number(s.value);
@@ -513,7 +576,8 @@ export function openPhotoImport({ lang, onAdd }) {
       renderRows();
       list.lastElementChild?.querySelector('input')?.focus();
     });
-    body.querySelector('[data-act=again]').addEventListener('click', () => stepPick());
+    body.querySelector('[data-act=again]')?.addEventListener('click', () => stepPick());
+    body.querySelector('[data-act=cancel]')?.addEventListener('click', close);
     takeBtn.addEventListener('click', () => {
       const words = entries
         .map((e) => ({ fremd: e.fremd.trim(), de: e.de.trim(), hint: (e.hint || '').trim() }))
@@ -524,7 +588,13 @@ export function openPhotoImport({ lang, onAdd }) {
     });
   }
 
-  stepPick();
+  if (listMode) {
+    entries = words.map((w) => ({ fremd: w.fremd, de: w.de, hint: w.hint || '', y0: 0, y1: 0 }));
+    if (!entries.length) entries.push({ fremd: '', de: '', hint: '', y0: 0, y1: 0 });
+    stepReview();
+  } else {
+    stepPick();
+  }
   el.querySelector('.sheet-close').focus();
   return close;
 }

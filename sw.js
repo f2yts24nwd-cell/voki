@@ -2,11 +2,11 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v16';
-// Texterkennung für Fotos (vendor/tesseract, ca. 5–7 MB): wird erst beim ersten Benutzen geladen
-// und dann in einem eigenen Speicher behalten. Die Dateien ändern sich nie – bei einem Update
-// von Tesseract.js den Ordner umbenennen oder OCR_CACHE erhöhen.
-const OCR_CACHE = 'voki-ocr-1';
+const VERSION = 'voki-v17';
+// Große Zusatzdateien in vendor/ – Texterkennung (vendor/tesseract, ca. 5–7 MB) und Prüf-Wörterbücher
+// (vendor/dict, ca. 2 + 1 MB): werden erst beim ersten Benutzen geladen und dann in einem eigenen
+// Speicher behalten. Bei neuen Dateien dort OCR_CACHE erhöhen.
+const OCR_CACHE = 'voki-vendor-2';
 const NETWORK_TIMEOUT = 4000;
 const FILES = [
   './',
@@ -33,6 +33,7 @@ const FILES = [
   'js/maps.js',
   'js/photo-import.js',
   'js/ocr-table.js',
+  'js/vocab-check.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -62,8 +63,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   url.hash = '';
 
-  // Texterkennung: zuerst aus dem Speicher, sonst laden und merken
-  if (url.pathname.includes('/vendor/tesseract/')) {
+  // Texterkennung und Wörterbücher: zuerst aus dem Speicher, sonst laden und merken
+  if (url.pathname.includes('/vendor/')) {
     e.respondWith((async () => {
       const cache = await caches.open(OCR_CACHE);
       const hit = await cache.match(url.href, { ignoreSearch: true });

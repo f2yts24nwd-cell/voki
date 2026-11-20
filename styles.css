@@ -1095,6 +1095,7 @@ html, body { transition: background 0.2s; }
 
 /* ---------- Vokabeln fotografieren ---------- */
 .photo-btn { width: 100%; min-height: 52px; }
+.row > .photo-btn { flex: 1 1 220px; }
 .sheet.wide { max-width: 860px; max-height: 92dvh; }
 .ocr-title { margin: 0; padding-right: 44px; font-size: 1.25rem; }
 .ocr-body { display: flex; flex-direction: column; gap: 12px; }
@@ -1150,3 +1151,19 @@ html, body { transition: background 0.2s; }
 @media (max-width: 520px) {
   .ocr-fields { grid-template-columns: 1fr; }
 }
+
+/* Wörterbuch-Prüfung */
+.ocr-summary { margin: 0; }
+.ocr-summary .ok { color: var(--ok); }
+.ocr-summary .warn { color: #b45309; }
+.ocr-check {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  font-size: 0.88rem; line-height: 1.35; color: var(--muted);
+}
+.ocr-check:empty { display: none; }
+.ocr-check.ok { color: var(--ok); }
+.ocr-check.warn { color: var(--text); background: var(--warn-bg); border-radius: 8px; padding: 6px 8px; }
+.ocr-check.warn, .ocr-check.warn .btn { color: #1e1b4b; }
+.ocr-check-icon { flex: none; }
+.ocr-check > span:not(.ocr-check-icon) { flex: 1 1 200px; }
+.btn.small-btn { min-height: 34px; padding: 4px 10px; font-size: 0.85rem; border-radius: 10px; }

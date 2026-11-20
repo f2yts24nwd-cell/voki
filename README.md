@@ -132,6 +132,42 @@ geschickt, es gibt keinen Server, kein Konto und keine Lizenzkosten.
   `tesseract.js-core` (`tesseract-core-simd-lstm.*`, `tesseract-core-lstm.*`) und `@tesseract.js-data/<sprache>`
   (`4.0.0_best_int/*.traineddata.gz`) kopieren und `OCR_CACHE` in `sw.js` erhöhen.
 
+## 🔍 Wörter prüfen (Wörterbuch)
+
+Nach dem Fotografieren – und im Listen-Editor über **„🔍 Wörter prüfen“** auch für abgetippte Listen – vergleicht Voki
+jeden Eintrag mit einem offenen Wörterbuch:
+
+| Prüfung | Beispiel |
+| --- | --- |
+| Rechtschreibung Fremdsprache | „hospitl“ ➜ „hospital“, „le cinema“ ➜ „le cinéma“, „lethéâtre“ ➜ „le théâtre“ |
+| Übersetzung | passt „schön“ zu „beautiful“? Sonst: „Das Wörterbuch kennt andere Bedeutungen: …“ |
+| Rechtschreibung Deutsch | „schon“ ➜ „schön“, „gefahrlich“ ➜ „gefährlich“, „Backerei“ ➜ „Bäckerei“ |
+| Artikel | „le ville“ ➜ „la ville“ (Geschlecht), „der Kino“ ➜ „das Kino“ |
+
+Jede Zeile bekommt ✓ (passt), ⚠️ (bitte prüfen, mit Vorschlag zum Antippen), ℹ️ (das Buch übersetzt anders als das
+Wörterbuch – das ist oft in Ordnung) oder ? (nicht im Wörterbuch). Das Buch hat immer recht: Die Prüfung macht nur
+Vorschläge.
+
+**Quelle:** Wiktionary – deutsches Wiktionary (deutsche Bedeutungen englischer und französischer Wörter) und
+englisches Wiktionary (Übersetzungstabellen; Französisch ↔ Deutsch über dieselbe englische Bedeutung), aufbereitet von
+wiktextract/kaikki.org. Lizenz **CC BY-SA 4.0**, Details in `vendor/dict/LICENSE.md`. Dialekte, veraltete, vulgäre und
+abwertende Einträge sind herausgefiltert.
+
+- Englisch: ca. 69 000 Wörter (2,1 MB), Französisch: ca. 62 000 Wörter (1,3 MB) – werden erst beim ersten Prüfen
+  geladen und vom Service Worker gespeichert, danach offline.
+- An den eingebauten Voki-Listen gemessen: 306 von 321 englischen und 89 von 112 französischen Einträgen „passen“,
+  nur 1 Fehlalarm (⚠️ bei einem richtigen Wort); der Rest ist ℹ️/?, z. B. freie Übersetzungen wie „flat = Wohnung“.
+- Neu bauen (z. B. mit neueren Wiktionary-Daten):
+  ```bash
+  curl -O https://kaikki.org/dewiktionary/Englisch/kaikki.org-dictionary-Englisch.jsonl
+  curl -O https://kaikki.org/dewiktionary/Franz%C3%B6sisch/kaikki.org-dictionary-Franz%C3%B6sisch.jsonl
+  curl -sS https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl.gz \
+    | gunzip | python3 -I tools/extract-enwiktionary.py > enwikt-de-fr.jsonl     # ca. 530 MB, gestreamt
+  python3 -I tools/build-dict.py kaikki.org-dictionary-Englisch.jsonl \
+    kaikki.org-dictionary-Französisch.jsonl enwikt-de-fr.jsonl
+  ```
+  Danach `OCR_CACHE` in `sw.js` erhöhen.
+
 ## Starten
 
 Es gibt keinen Build-Schritt – es sind nur statische Dateien.
@@ -172,7 +208,10 @@ npx http-server -c-1 .
 | `js/maps.js` | Stumme Karten, Klimadiagramm und Gezeitenkurve (SVG) |
 | `js/photo-import.js` | Vokabeln fotografieren: Foto, Zuschneiden, Texterkennung, Prüf-Tabelle |
 | `js/ocr-table.js` | Erkannte Wörter ➜ Zeilen, Spalten und Vokabel-Einträge |
+| `js/vocab-check.js` | Wörter gegen das Wörterbuch prüfen (Rechtschreibung, Übersetzung, Artikel) |
 | `vendor/tesseract/` | Texterkennung Tesseract.js (Apache-2.0, siehe `LICENSE` dort) mit Sprachdaten |
+| `vendor/dict/` | Prüf-Wörterbücher aus dem Wiktionary (CC BY-SA 4.0, siehe `LICENSE.md` dort) |
+| `tools/` | Skripte zum Bauen der Wörterbücher |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
 
 Wenn du Dateien änderst, in `sw.js` die `VERSION` und in `js/app.js` die `APP_VERSION` erhöhen. Die Versionsnummer steht unten in den Einstellungen.
