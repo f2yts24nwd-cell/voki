@@ -44,6 +44,7 @@ und Voki erkennt die Handschrift und prüft, ob es richtig geschrieben ist.
 - Französische Nomen in Farbe: männlich blau, weiblich rot (wie im Vokabelheft)
 - Französisch: Akzente zählen mit (é ≠ e), beim Tippen gibt es eine Akzent-Leiste
 - **Eigene Listen** für die Wörter aus dem Schulbuch (z. B. „Unit 3“) – einfach `englisch = deutsch` pro Zeile
+- **📷 Vokabeln fotografieren**: Vokabelliste aus dem Buch abfotografieren, statt sie abzutippen (siehe unten)
 - **Handschrifterkennung** für Apple Pencil, Android-Stift, Finger oder Maus
 - **Neue Wörter einprägen**: neues Wort wird gezeigt, vorgelesen und einmal abgeschrieben
 - **Fehler abschreiben**: Bei einem Fehler werden die falschen Buchstaben markiert, danach schreibt man das Wort richtig ab
@@ -92,6 +93,33 @@ In den Einstellungen gibt es zwei Prüfstufen:
 
 Falls die Schrift mal falsch gelesen wird, kann man „Ich hatte es richtig“ antippen.
 
+## 📷 Vokabeln fotografieren
+
+Unter *Neue Liste* (oder *Liste bearbeiten*) gibt es den Knopf **„Vokabeln aus dem Buch fotografieren“**:
+
+1. Foto aufnehmen (oder aus den Fotos wählen) – auf dem iPad öffnet sich direkt die Kamera.
+2. Rahmen an den Ecken auf die Vokabelliste ziehen, bei Bedarf **drehen**.
+3. **Text erkennen** – Voki liest die Seite und baut daraus eine Tabelle.
+4. Prüfen: Zu jedem Eintrag wird der passende Streifen aus dem Foto angezeigt; schwer lesbare Felder sind gelb.
+   Zeilen lassen sich korrigieren, löschen, mit der Zeile darüber verbinden oder neu hinzufügen.
+   Bei Büchern mit drei Spalten (Wort · Beispielsatz · Deutsch) kann man unter „Spalten zuordnen“ wählen,
+   welche Spalte was ist – der Beispielsatz kann als Hinweis mitgenommen werden.
+5. **Übernehmen** – die Wörter landen im Wörterfeld (`fremdsprache = deutsch`) und können noch bearbeitet werden.
+
+**Technik:** Die Texterkennung ist [Tesseract.js](https://github.com/naptha/tesseract.js) 6.0.1 (Apache-2.0-Lizenz,
+WebAssembly). Sie liegt komplett in `vendor/tesseract/` und läuft **nur auf dem Gerät** – das Foto wird nirgendwohin
+geschickt, es gibt keinen Server, kein Konto und keine Lizenzkosten.
+
+- Sprachdaten: `eng`, `fra`, `deu` (Variante *best_int*), erkannt wird immer zusammen mit Deutsch (`deu+eng` bzw. `deu+fra`),
+  damit Umlaute und Akzente stimmen.
+- Beim ersten Benutzen werden ca. 5 MB geladen (Programm + zwei Sprachen), der Service Worker speichert sie in einem
+  eigenen Speicher (`voki-ocr-1`). Danach geht es auch offline. Wer die Erkennung nie benutzt, lädt nichts davon.
+- Aus den Wort-Positionen errechnet `js/ocr-table.js` Zeilen und Spalten (inkl. Ausgleich einer leichten Schräglage),
+  entfernt Lautschrift in `[…]` und hängt umgebrochene Bedeutungen an den richtigen Eintrag an.
+- Tesseract.js aktualisieren: Dateien aus den npm-Paketen `tesseract.js` (`dist/tesseract.esm.min.js`, `dist/worker.min.js`),
+  `tesseract.js-core` (`tesseract-core-simd-lstm.*`, `tesseract-core-lstm.*`) und `@tesseract.js-data/<sprache>`
+  (`4.0.0_best_int/*.traineddata.gz`) kopieren und `OCR_CACHE` in `sw.js` erhöhen.
+
 ## Starten
 
 Es gibt keinen Build-Schritt – es sind nur statische Dateien.
@@ -130,6 +158,9 @@ npx http-server -c-1 .
 | `js/bio-data.js` | Bio-Themen, Forscher-Wissen, Fragen und Forscher-Aufträge |
 | `js/geo-data.js` | Erdkunde-Themen, Fragen, Karten- und Diagramm-Aufgaben |
 | `js/maps.js` | Stumme Karten, Klimadiagramm und Gezeitenkurve (SVG) |
+| `js/photo-import.js` | Vokabeln fotografieren: Foto, Zuschneiden, Texterkennung, Prüf-Tabelle |
+| `js/ocr-table.js` | Erkannte Wörter ➜ Zeilen, Spalten und Vokabel-Einträge |
+| `vendor/tesseract/` | Texterkennung Tesseract.js (Apache-2.0, siehe `LICENSE` dort) mit Sprachdaten |
 | `sw.js`, `manifest.webmanifest` | Offline-Funktion und Installierbarkeit |
 
 Wenn du Dateien änderst, in `sw.js` die `VERSION` und in `js/app.js` die `APP_VERSION` erhöhen. Die Versionsnummer steht unten in den Einstellungen.
