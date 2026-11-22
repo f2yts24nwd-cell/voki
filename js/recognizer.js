@@ -61,12 +61,15 @@ export function inputMode(langs, engine) {
 }
 
 // Liefert eine Liste von Kandidaten, der wahrscheinlichste zuerst.
-// oneWord: Die erwartete Antwort ist ein einzelnes Wort (hilft der Voki-Erkennung).
-export async function recognize(strokes, { lang, pointerType, oneWord = false }) {
+// Nur für die Voki-Erkennung (die eingebaute Erkennung kennt keine Lösung):
+//   oneWord – die erwartete Antwort ist ein einzelnes Wort
+//   expected – die richtigen Schreibweisen; passt eine fast so gut wie die beste Lesart, zählt sie
+//   caseSensitive, slack – siehe js/local-ink.js
+export async function recognize(strokes, { lang, pointerType, oneWord = false, expected = [], caseSensitive = false, slack = 3 }) {
   if (!strokes.length) return [];
   if (!support[lang] && localOn) {
     try {
-      return await recognizeLocal(strokes, { oneWord });
+      return await recognizeLocal(strokes, { oneWord, expected, caseSensitive, slack });
     } catch (e) {
       throw new RecognitionError('Die Voki-Erkennung konnte nicht geladen werden' + (navigator.onLine ? '' : ' (beim ersten Mal braucht sie Internet)') + ': ' + e.message);
     }

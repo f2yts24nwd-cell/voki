@@ -2,7 +2,7 @@
 // Strategie "zuerst online": Neue Versionen erscheinen sofort, die gespeicherten
 // Dateien werden nur benutzt, wenn kein Internet da ist (oder es zu lange dauert).
 // Bei Änderungen an den Dateien VERSION erhöhen (und APP_VERSION in js/app.js).
-const VERSION = 'voki-v18';
+const VERSION = 'voki-v19';
 // Große Zusatzdateien in vendor/ – Texterkennung (vendor/tesseract, ca. 5–7 MB), Voki-Handschrifterkennung
 // (vendor/paddle, ca. 31 MB, Test-Option) und Prüf-Wörterbücher
 // (vendor/dict, ca. 2 + 1 MB): werden erst beim ersten Benutzen geladen und dann in einem eigenen

@@ -93,8 +93,20 @@ Die Handschrift wird **nur auf dem Gerät** erkannt – Voki schickt nichts ins 
    Beim ersten Benutzen werden ca. 18 MB geladen (gepackt; 31 MB entpackt), danach geht es offline.
    Nur lateinische Buchstaben mit Akzenten/Umlauten, Ziffern und Satzzeichen werden zugelassen; ist die Antwort
    ein einzelnes Wort, werden Lücken in der Schrift nicht als Leerzeichen gelesen.
-   *Test mit generierter Schrift (5 Schreibstile, 220 Wörter/Sätze EN+FR):* streng 81 %, großzügig 87 % erkannt;
-   von 24 absichtlich falsch geschriebenen Wörtern wurden 23 genau so falsch gelesen (wichtig für die Rechtschreibprüfung).
+   **Abgleich mit der Lösung:** Voki fragt das Modell nicht nur „Was steht da?“, sondern auch „Wie gut passt die
+   richtige Lösung zur Schrift?“ (CTC-Wahrscheinlichkeit). Passt sie fast so gut wie die beste Lesart, zählt sie –
+   so wird z. B. ein offenes „o“, das wie „a“ aussieht, nicht als Fehler gewertet. Ein fehlender, doppelter oder
+   vertauschter Buchstabe passt deutlich schlechter und bleibt ein Fehler. „Streng“/„Großzügig“ bestimmen, wie viel
+   Abweichung erlaubt ist (`slack` 3 bzw. 5). „œ“ kennt das Modell nicht – es wird als „oe“ abgeglichen.
+   *Test mit generierter Schrift (5 Schreibstile, 220 richtig und 170 falsch geschriebene Wörter/Sätze EN+FR):*
+
+   | | richtig Geschriebenes erkannt | Rechtschreibfehler übersehen |
+   | --- | --- | --- |
+   | ohne Abgleich, streng | 81 % | 1 % |
+   | ohne Abgleich, großzügig (Top 3) | 87 % | 9 % |
+   | **mit Abgleich, streng** | **90 %** | **3 %** |
+   | **mit Abgleich, großzügig** | **94 %** | **4 %** |
+
    Mit echter Kinderschrift ist das noch nicht ausprobiert – deshalb „Test“.
 4. Auf allen anderen Geräten wird **getippt**.
 
