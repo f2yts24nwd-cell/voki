@@ -155,10 +155,58 @@ function decode(probs, T, C, chars, allowed, beamWidth = 6, n = 5) {
   return out.slice(0, n);
 }
 
+// Wie gut passt ein bestimmter Text zur Schrift? log-Wahrscheinlichkeit nach dem
+// CTC-Vorwärtsalgorithmus (über alle Arten, wie das Modell den Text lesen kann).
+function scorer(probs, T, C, chars, allowed) {
+  const idx = new Map();
+  chars.forEach((c, i) => { if (allowed[i] && !idx.has(c)) idx.set(c, i); });
+  const norm = new Float32Array(T);
+  for (let t = 0; t < T; t++) {
+    let sum = probs[t * C];
+    for (let k = 1; k < C; k++) if (allowed[k]) sum += probs[t * C + k];
+    norm[t] = sum;
+  }
+  const lp = (t, k) => Math.log(Math.max(1e-12, probs[t * C + k] / norm[t]));
+  const lse = (a, b) => (a === -Infinity ? b : b === -Infinity ? a : Math.max(a, b) + Math.log1p(Math.exp(-Math.abs(a - b))));
+  return (text) => {
+    // Das Modell kennt kein „œ“ – es liest „oe“
+    const labels = [...text.replace(/œ/g, 'oe').replace(/Œ/g, 'Oe')].map((c) => idx.get(c));
+    if (!labels.length || labels.some((l) => l === undefined)) return -Infinity;
+    const ext = [0];
+    for (const l of labels) ext.push(l, 0);
+    const S = ext.length;
+    let a = new Array(S).fill(-Infinity);
+    a[0] = lp(0, 0);
+    a[1] = lp(0, ext[1]);
+    for (let t = 1; t < T; t++) {
+      const b = new Array(S).fill(-Infinity);
+      for (let i = 0; i < S; i++) {
+        let v = a[i];
+        if (i > 0) v = lse(v, a[i - 1]);
+        if (i > 1 && ext[i] !== 0 && ext[i] !== ext[i - 2]) v = lse(v, a[i - 2]);
+        b[i] = v + lp(t, ext[i]);
+      }
+      a = b;
+    }
+    return lse(a[S - 1], a[S - 2]);
+  };
+}
+
+// Groß-/Kleinschreibung: Wenn sie nicht zählt, darf das Wort auch klein oder mit großem Anfangsbuchstaben dastehen
+function caseForms(v, caseSensitive) {
+  if (caseSensitive) return [v];
+  const lower = v.toLocaleLowerCase('de');
+  return [...new Set([v, lower, lower.charAt(0).toLocaleUpperCase('de') + lower.slice(1)])];
+}
+
 // Liefert eine Liste von Kandidaten, der wahrscheinlichste zuerst.
 // oneWord: Die Antwort ist ein einzelnes Wort – dann zählen Lücken in der Schrift nicht als Leerzeichen
-// (das Modell liest bei etwas Abstand zwischen zwei Buchstaben sonst z. B. „swim ming“).
-export async function recognizeLocal(strokes, { oneWord = false } = {}) {
+//   (das Modell liest bei etwas Abstand zwischen zwei Buchstaben sonst z. B. „swim ming“).
+// expected: die richtigen Schreibweisen. Passt eine davon fast so gut zur Schrift wie die beste Lesart
+//   (höchstens „slack“ schlechter, als log-Wahrscheinlichkeit), gilt sie als gelesen.
+//   So zählt z. B. ein offenes „o“, das wie „a“ aussieht, nicht als Fehler – ein fehlender, doppelter
+//   oder vertauschter Buchstabe passt dagegen deutlich schlechter und bleibt ein Fehler.
+export async function recognizeLocal(strokes, { oneWord = false, expected = [], caseSensitive = false, slack = 3 } = {}) {
   const { ort, session, chars, allowed } = await load();
   const { data, W } = rasterize(strokes);
   const out = await session.run({ [session.inputNames[0]]: new ort.Tensor('float32', data, [1, 3, H, W]) });
@@ -176,6 +224,21 @@ export async function recognizeLocal(strokes, { oneWord = false } = {}) {
       for (let k = 0; k < C; k++) probs[t * C + k] /= s;
     }
   }
-  const cands = decode(probs, T, C, chars, allowed);
-  return oneWord ? [...new Set(cands.map((c) => c.replace(/ /g, '')))] : cands;
+  let cands = decode(probs, T, C, chars, allowed);
+  if (oneWord) cands = [...new Set(cands.map((c) => c.replace(/ /g, '')))];
+  if (!expected.length || !cands.length) return cands;
+
+  const score = scorer(probs, T, C, chars, allowed);
+  const best = score(cands[0]);
+  let pick = null;
+  let pickScore = -Infinity;
+  for (const v of expected) {
+    for (const form of caseForms(v, caseSensitive)) {
+      const sc = score(form);
+      if (sc > pickScore) { pick = form; pickScore = sc; }
+    }
+  }
+  // Nur die Entscheidung zurückgeben: Die übrigen Vorschläge sollen bei „Großzügig“ nicht zusätzlich zählen –
+  // das übernimmt hier der größere Spielraum (im Test genauer und mit weniger übersehenen Fehlern)
+  return [pick !== null && pickScore >= Math.max(best, pickScore) - slack ? pick : cands[0]];
 }

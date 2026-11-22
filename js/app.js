@@ -19,7 +19,7 @@ let updateReady = false;
 const ink = { draw: false };
 
 // Muss zu VERSION in sw.js passen
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 
 // ---------- Hilfsfunktionen ----------
 
@@ -625,6 +625,7 @@ function renderPractice(listId, mode) {
   async function doCheck() {
     if (S.busy || S.phase === 'result') return;
     const it = item();
+    const expected = it.kind === 'intro' ? it.word.en : answerOf(it);
     let candidates;
     if (S.keyboard) {
       if (!kbd.value.trim()) return nudge();
@@ -639,7 +640,12 @@ function renderPractice(listId, mode) {
           width: pad.width,
           height: pad.height,
           pointerType: pad.lastPointerType,
-          oneWord: variants(it.kind === 'intro' ? it.word.en : answerOf(it)).every((v) => !/\s/.test(v)),
+          oneWord: variants(expected).every((v) => !/\s/.test(v)),
+          // Voki-Erkennung: Die richtige Lösung zählt, wenn sie fast so gut zur Schrift passt wie die beste
+          // Lesart („Großzügig“ lässt etwas mehr Abweichung zu)
+          expected: variants(expected),
+          caseSensitive: store.settings.caseSensitive,
+          slack: store.settings.tolerance === 3 ? 5 : 3,
         });
       } catch (e) {
         S.busy = false;
@@ -654,7 +660,6 @@ function renderPractice(listId, mode) {
     }
     if (!document.body.contains(pad.canvas)) return; // Seite inzwischen verlassen
 
-    const expected = it.kind === 'intro' ? it.word.en : answerOf(it);
     const res = check(candidates, expected, {
       caseSensitive: store.settings.caseSensitive,
       tolerance: S.keyboard && !S.scribble ? 1 : store.settings.tolerance,
